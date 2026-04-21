@@ -1,0 +1,49 @@
+"""Front wheel rotational dynamics and rear wheel kinematic reference.
+
+Sign convention:
+* ``omega_f`` > 0 : wheel spinning in the forward-rolling direction.
+* ``F_f`` ≥ 0 : magnitude of the retarding tire force. The ground reaction
+  on the wheel at the contact patch is ``-F_f`` along the +x axis, which
+  applies a torque ``-F_f * R_f`` about the wheel centre (decelerating).
+* ``T_b`` ≥ 0 : magnitude of the brake torque; also decelerates.
+
+Wheel equation: ``I_f * dω_f/dt = -F_f * R_f - T_b``.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+
+from ..block import Block
+
+
+class FrontWheelRotation(Block):
+    name = "wheel_f"
+    inputs = ["F_f", "T_b"]
+    outputs = ["omega_f"]
+
+    def __init__(self, I_f: float, R_f: float, omega0: float):
+        self.I_f = float(I_f)
+        self.R_f = float(R_f)
+        self.state = np.array([float(omega0)], dtype=float)
+
+    def output(self, t, x, u):
+        return {"omega_f": float(x[0])}
+
+    def derivatives(self, t, x, u):
+        F_f = u.get("F_f", 0.0)
+        T_b = u.get("T_b", 0.0)
+        return np.array([(-F_f * self.R_f - T_b) / self.I_f])
+
+
+class RearWheelKinematics(Block):
+    name = "wheel_r"
+    inputs = ["v"]
+    outputs = ["omega_r"]
+
+    def __init__(self, R_r: float):
+        self.R_r = float(R_r)
+
+    def step(self, t, u):
+        v = u.get("v", 0.0)
+        return {"omega_r": v / self.R_r}

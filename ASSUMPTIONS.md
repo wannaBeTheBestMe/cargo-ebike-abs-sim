@@ -29,6 +29,12 @@ commit that introduces it. Each entry: the assumption, a short rationale, and
    \approx 2$ kg at $R = 0.33$ m). Off by < 30 % for a real spoked wheel with
    hub mass; acceptable for a qualitative ABS-vs-cadence study.
 2. State is $\omega_f$ directly (not a $\Delta\omega$ sum), per review.
+3. **Sign convention.** $F_f \geq 0$ is the magnitude of the tire retarding
+   force; its reaction at the contact patch applies a torque $-F_f R_f$ on
+   the wheel. The wheel equation is therefore
+   $I_f \dot\omega_f = -F_f R_f - T_b$, which is the consistent-sign form of
+   PLAN.md §9 / §2 (the plan's "$+ F_f R_f$" uses the opposite convention
+   and would accelerate the wheel during braking).
 
 ## RearWheelKinematics
 
