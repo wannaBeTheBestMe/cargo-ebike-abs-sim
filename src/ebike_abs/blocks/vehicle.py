@@ -44,5 +44,10 @@ class VehicleTranslation(Block):
         return {"v": v, "a_x": a_x}
 
     def derivatives(self, t, x, u):
+        v = float(x[0])
         F_f = u.get("F_f", 0.0)
-        return np.array([-self._retarding_force(F_f) / self.m])
+        dv = -self._retarding_force(F_f) / self.m
+        # Braking only: don't let v run negative once the bike has stopped.
+        if v <= 0.0 and dv < 0.0:
+            return np.array([0.0])
+        return np.array([dv])

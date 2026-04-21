@@ -77,3 +77,20 @@ commit that introduces it. Each entry: the assumption, a short rationale, and
 1. $v_0 = 8.33$ m/s (30 km/h) panic stop on dry asphalt.
 2. Initial conditions: $\omega_f(0) = v_0 / R_f$, zero brake torque, zero
    motor current, zero clamp force.
+
+## Phase A end-of-phase checkpoint
+
+1. **Forced-lock oracle met.** Running the Phase A plant with $\omega_f \equiv
+   0$ (see `tests/test_integration.py::ForcedLockedWheel`) gives a stopping
+   distance within 1 % of $v_0^2 / (2 \mu_{\text{peak}} g)$ ≈ 3.93 m. The
+   measured distance from the prescribed-clamp panic-stop is ≈ 3.95 m
+   (0.5 % over the oracle), with the wheel locking once the brake ramp
+   saturates the tire.
+2. **Known minor limitation.** Between RK4 substeps $\omega_f$ can dip a few
+   orders of magnitude below zero before the one-sided lock guard kicks in
+   on the next evaluation, so the logged $\lambda_f^{\text{true}}$ signal
+   briefly reports values slightly above 1 (peak ≈ 1.33 on the default
+   scenario). The Dugoff block clamps $\lambda$ back into $[0, 1)$
+   internally, so $F_f$ stays bounded at $\mu_{\text{peak}} N_f$. A
+   post-RK4 state clip will be added in Phase B if the noise interferes
+   with the ABS estimator.
