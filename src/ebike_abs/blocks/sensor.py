@@ -35,7 +35,12 @@ _TWO_PI = 2.0 * np.pi
 class HallSensor(Block):
     name = "hall"
     inputs = ["omega_f"]
-    outputs = ["theta_f", "hall_edge_count", "hall_last_edge_dt"]
+    outputs = [
+        "theta_f",
+        "hall_edge_count",
+        "hall_last_edge_dt",
+        "hall_last_edge_t",
+    ]
 
     def __init__(
         self,
@@ -64,6 +69,7 @@ class HallSensor(Block):
             "theta_f": float(x[0]),
             "hall_edge_count": int(self.edge_count),
             "hall_last_edge_dt": float(self.last_edge_dt),
+            "hall_last_edge_t": float(self.last_edge_t),
         }
 
     def derivatives(self, t, x, u):
@@ -114,7 +120,7 @@ class WheelSpeedEstimator(Block):
     """
 
     name = "speed_est"
-    inputs = ["hall_edge_count", "hall_last_edge_dt"]
+    inputs = ["hall_edge_count", "hall_last_edge_dt", "hall_last_edge_t"]
     outputs = ["omega_f_hat", "omega_f_hat_dot", "omega_f_raw"]
 
     def __init__(
@@ -123,19 +129,27 @@ class WheelSpeedEstimator(Block):
         lpf_fc: float,
         ma_window: int,
         dt: float,
+        omega0: float = 0.0,
     ):
         self.angle_per_edge = _TWO_PI / float(N_hall)
         self.tau_lpf = 1.0 / (2.0 * np.pi * float(lpf_fc))
         self.ma_window = int(ma_window)
         self.dt = float(dt)
         self._last_edge_count: int = 0
-        self._omega_raw: float = 0.0
-        self._omega_lpf: float = 0.0
-        self._ma_buf: deque[float] = deque(maxlen=self.ma_window)
-        self._omega_hat: float = 0.0
+        self._omega_raw: float = float(omega0)
+        self._omega_lpf: float = float(omega0)
+        self._ma_buf: deque[float] = deque([float(omega0)] * self.ma_window, maxlen=self.ma_window)
+        self._omega_hat: float = float(omega0)
+        # Seed the "virtual last edge interval" so the edge-timeout bound
+        # works from t=0, before any real edge has fired. Uses the
+        # initial wheel speed to predict the first-edge interval.
+        self._virtual_last_dt: float = self.angle_per_edge / float(omega0) if omega0 > 0.0 else 0.0
         # Central-difference history: need the last three MA outputs and
-        # the times they were produced.
+        # the times they were produced. Seed with the initial estimate
+        # so the derivative is defined from step one.
         self._hat_history: deque[tuple[float, float]] = deque(maxlen=3)
+        for k in range(3):
+            self._hat_history.append((-float(k + 1) * dt, float(omega0)))
         self._omega_hat_dot: float = 0.0
 
     def step(self, t, u):
@@ -145,28 +159,9 @@ class WheelSpeedEstimator(Block):
             "omega_f_raw": self._omega_raw,
         }
 
-    def commit(self, t, signals):
-        edge_count = int(signals.get("hall_edge_count", self._last_edge_count))
-        if edge_count == self._last_edge_count:
-            return
-        n_new = edge_count - self._last_edge_count
-        dt_edge = float(signals.get("hall_last_edge_dt", 0.0))
-        if dt_edge <= 0.0:
-            return
-        self._omega_raw = self.angle_per_edge / dt_edge
-        # First-order LPF. For edge-triggered sampling we use the edge
-        # interval as the LPF timestep so the cutoff behaves correctly
-        # regardless of wheel speed.
-        alpha = dt_edge / (self.tau_lpf + dt_edge)
-        self._omega_lpf = self._omega_lpf + alpha * (self._omega_raw - self._omega_lpf)
-        # One MA push per new edge. If multiple edges arrived inside a
-        # single simulator step (very high ω), push the LPF output n_new
-        # times so the buffer reflects the true edge rate.
-        for _ in range(n_new):
-            self._ma_buf.append(self._omega_lpf)
-        self._omega_hat = float(np.mean(self._ma_buf)) if self._ma_buf else 0.0
-        self._hat_history.append((t, self._omega_hat))
-        # Central difference once we have ≥ 3 samples.
+    def _push_hat(self, t: float, value: float) -> None:
+        self._omega_hat = value
+        self._hat_history.append((t, value))
         if len(self._hat_history) == 3:
             (t0, w0), _mid, (t2, w2) = (
                 self._hat_history[0],
@@ -176,4 +171,44 @@ class WheelSpeedEstimator(Block):
             dt_cd = t2 - t0
             if dt_cd > 0.0:
                 self._omega_hat_dot = (w2 - w0) / dt_cd
+
+    def commit(self, t, signals):
+        edge_count = int(signals.get("hall_edge_count", self._last_edge_count))
+        last_edge_t = float(signals.get("hall_last_edge_t", 0.0))
+        if edge_count == self._last_edge_count:
+            # No new edge this step. A real ABS-grade estimator pulls its
+            # estimate down by the "edge-period upper bound": the wheel
+            # cannot be spinning faster than one edge per (t − t_last).
+            # Without this, a locked wheel leaves the estimator stuck on
+            # its last fresh reading and the FSM never fires. We bound
+            # only when ``dt_since`` exceeds the most recent known edge
+            # interval — inside that interval the last edge's rate is
+            # still the tightest bound we have. Before the first real
+            # edge, the initial-speed-derived virtual interval stands in.
+            last_dt = float(signals.get("hall_last_edge_dt", 0.0))
+            if last_dt <= 0.0:
+                last_dt = self._virtual_last_dt
+            if last_dt > 0.0:
+                dt_since = t - last_edge_t
+                # 1.5× slack keeps the bound from firing on the normal
+                # inter-edge gap (at steady ω, dt_since reaches ≈ last_dt
+                # just before the next edge); the wheel has to be slowing
+                # by more than a third of the last-known rate before we
+                # believe it.
+                if dt_since > 1.5 * last_dt:
+                    omega_upper = self.angle_per_edge / dt_since
+                    if omega_upper < self._omega_hat:
+                        self._push_hat(t, omega_upper)
+            return
+        n_new = edge_count - self._last_edge_count
+        dt_edge = float(signals.get("hall_last_edge_dt", 0.0))
+        if dt_edge <= 0.0:
+            return
+        self._omega_raw = self.angle_per_edge / dt_edge
+        alpha = dt_edge / (self.tau_lpf + dt_edge)
+        self._omega_lpf = self._omega_lpf + alpha * (self._omega_raw - self._omega_lpf)
+        for _ in range(n_new):
+            self._ma_buf.append(self._omega_lpf)
+        new_hat = float(np.mean(self._ma_buf)) if self._ma_buf else 0.0
+        self._push_hat(t, new_hat)
         self._last_edge_count = edge_count

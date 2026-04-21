@@ -29,12 +29,19 @@ commit that introduces it. Each entry: the assumption, a short rationale, and
    \approx 2$ kg at $R = 0.33$ m). Off by < 30 % for a real spoked wheel with
    hub mass; acceptable for a qualitative ABS-vs-cadence study.
 2. State is $\omega_f$ directly (not a $\Delta\omega$ sum), per review.
-3. **Sign convention.** $F_f \geq 0$ is the magnitude of the tire retarding
-   force; its reaction at the contact patch applies a torque $-F_f R_f$ on
-   the wheel. The wheel equation is therefore
-   $I_f \dot\omega_f = -F_f R_f - T_b$, which is the consistent-sign form of
-   PLAN.md §9 / §2 (the plan's "$+ F_f R_f$" uses the opposite convention
-   and would accelerate the wheel during braking).
+3. **Sign convention (matches PLAN.md §2).** $F_f \geq 0$ is the magnitude
+   of the retarding tire force on the bike; the reaction at the contact
+   patch applies a torque $+F_f R_f$ on the wheel — the same direction
+   as forward-rolling $\omega_f$. This is the physically correct sign:
+   when the tire slides forward (ω·R < v), ground friction spins the
+   wheel *up* toward $v/R$. Without it, an ABS DUMP that releases
+   $T_b$ could not unlock the wheel.
+4. **One-sided lock guard.** Inside ``derivatives`` we clamp
+   ``dω_f/dt`` to zero whenever ``ω_f ≤ 0`` and the net torque is still
+   negative, so the wheel doesn't spin backward under a pure brake
+   torque. Once the net torque goes positive (e.g. DUMP drops $T_b$ to
+   zero and the tire force re-spins the wheel) the guard releases and
+   ω_f accelerates back toward rolling.
 
 ## RearWheelKinematics
 
@@ -170,6 +177,59 @@ commit that introduces it. Each entry: the assumption, a short rationale, and
 1. $v_0 = 8.33$ m/s (30 km/h) panic stop on dry asphalt.
 2. Initial conditions: $\omega_f(0) = v_0 / R_f$, zero brake torque, zero
    motor current, zero clamp force.
+
+## ABSController (Phase C)
+
+1. **Five-state FSM.** Modes are ``APPLY`` (0), ``DUMP`` (1), ``HOLD``
+   (2), ``REAPPLY`` (3), and ``BYPASS`` (4). ``APPLY/REAPPLY/BYPASS``
+   pass ``V_pwm_cmd`` through to the motor; ``DUMP/HOLD`` clamp
+   ``V_pwm = 0``. The motor then spins down through its own viscous
+   load, which drops $F_{\text{clamp}}$ via the lead-screw + hydraulic
+   lag — the DUMP is *not* an instantaneous brake release, it's gated
+   by $\tau_{\text{hyd}}$.
+2. **Trigger thresholds.** ``APPLY → DUMP`` when
+   $\hat\lambda_f > \lambda_{\text{on}} = 0.20$ *and*
+   $\dot{\hat\omega}_f < \dot\omega_{\text{trig}} = -100\,\text{rad/s}^2$.
+   The ω-dot check rejects slow-drift slip from estimator lag.
+3. **Dump dwell / hold.** Once in ``DUMP`` the FSM waits for
+   $\hat\lambda_f < \lambda_{\text{off}} = 0.05$, then moves to
+   ``HOLD`` for ``dump_dwell = 50 ms``, then ``REAPPLY``. The HOLD
+   dwell gives the hydraulic line time to re-pressurise smoothly before
+   we unclamp the motor command again.
+4. **Low-speed bypass.** Below ``v_cutoff = 1.4 m/s`` (≈ 5 km/h) the
+   FSM falls to ``BYPASS`` and stops modulating. Slip estimates are
+   unreliable near standstill (``v_epsilon`` denominator clamp
+   dominates) and modulating there would just prevent the bike
+   stopping.
+5. **MVP estimator-lag limitation.** With a 20-magnet Hall + 4-sample
+   MA + LPF chain, there is ≈ 15–25 ms of detection lag between the
+   true wheel-lock event and the FSM's first DUMP. On a $v_0 = 8.33$
+   m/s dry-asphalt panic stop this means the wheel does briefly reach
+   $\omega_f \approx 0$ on the first cycle (peak
+   $|\lambda_f^{\text{true}}| \approx 1$), so PLAN's $< 0.30$ peak-slip
+   oracle is *not* met by the MVP. What the MVP *does* achieve is
+   cycling behaviour: the locked-time fraction (above ``v_cutoff``)
+   drops from ≈ 72 % in Phase B to ≈ 12 % in Phase C, documented in
+   ``tests/test_abs.py``. A higher-resolution encoder or a
+   sliding-mode estimator would be needed to hit the $< 0.30$ bound;
+   that is explicitly deferred to a Phase D iteration.
+6. **Dry-asphalt stopping-distance finding.** On dry pavement the
+   MVP ABS does *not* shorten the stop vs the locked-wheel slide —
+   because $\mu_{\text{sliding}}$ for a tire on dry asphalt is close to
+   $\mu_{\text{peak}}$ and every sub-peak moment spent in DUMP/HOLD is
+   distance lost. This is the expected outcome per the study's
+   motivating question (ABS is a low-μ story), and is asserted only as
+   "same order of magnitude" in ``tests/test_abs.py`` rather than
+   "shorter".
+
+## Controller chain (Phase B/C)
+
+1. **``V_pwm_cmd`` → ``V_pwm`` indirection.** The rider models
+   (``HumanBrakeController``, ``CadenceController``) emit
+   ``V_pwm_cmd``; ``Passthrough`` or ``ABSController`` then decides
+   whether to pass it through or dump it. Scenario builders swap the
+   middle block to compare strategies without touching the rider or
+   plant chain.
 
 ## Phase A end-of-phase checkpoint
 

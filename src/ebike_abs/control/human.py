@@ -18,15 +18,27 @@ from ..block import Block
 class HumanBrakeController(Block):
     name = "human"
     inputs: list[str] = []
-    outputs = ["V_pwm"]
+    outputs = ["V_pwm_cmd"]
 
     def __init__(self, V_hold: float, t_rise: float):
         self.V_hold = float(V_hold)
         self.t_rise = float(t_rise)
 
     def step(self, t, u):
-        if self.t_rise <= 0.0:
-            frac = 1.0
-        else:
-            frac = min(1.0, max(0.0, t / self.t_rise))
-        return {"V_pwm": self.V_hold * frac}
+        frac = 1.0 if self.t_rise <= 0.0 else min(1.0, max(0.0, t / self.t_rise))
+        return {"V_pwm_cmd": self.V_hold * frac}
+
+
+class Passthrough(Block):
+    """Copy ``V_pwm_cmd`` → ``V_pwm`` unchanged.
+
+    Used by the Phase B human-only scenario where no ABS / cadence gate
+    sits between the rider and the actuator.
+    """
+
+    name = "gate_passthrough"
+    inputs = ["V_pwm_cmd"]
+    outputs = ["V_pwm"]
+
+    def step(self, t, u):
+        return {"V_pwm": u.get("V_pwm_cmd", 0.0)}

@@ -56,9 +56,12 @@ v_epsilon = 0.1        # m/s  denominator clamp in slip-ratio calc
 
 [scenario.prescribed_clamp]
 # Phase A commit 5 uses this ramp instead of the actuator chain.
-# Linear rise 0 → F_peak over t_rise, then hold.
+# Linear rise 0 → F_peak over t_rise, then hold. F_peak = 5000 N is
+# comfortably above the ~3100 N wheel-lock threshold (μ_peak · m · g ·
+# R_f / (μ_pad · r_eff · n_pads)) so the panic stop reliably locks the
+# wheel even with the correct ``+F_f R_f`` wheel sign convention.
 t_rise = 0.15          # s
-F_peak = 2000.0        # N    clamping force at hold
+F_peak = 5000.0        # N    clamping force at hold (above lock threshold)
 
 [controller.human]
 # Phase B human-baseline controller drives V_pwm directly (motor-actuated
@@ -74,6 +77,7 @@ lambda_on = 0.20
 lambda_off = 0.05
 omega_dot_trig = -100.0   # rad/s²
 v_cutoff = 1.4            # m/s (~5 km/h)
+dump_dwell = 0.050        # s    HOLD dwell before re-engaging
 
 [controller.cadence]
 freq = 2.0             # Hz
