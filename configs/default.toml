@@ -24,14 +24,17 @@ n_pads = 2             # -    pads per caliper
 
 [actuator]
 # Phase A uses a prescribed F_clamp(t) ramp; the motor/hydraulic chain
-# below is only consumed from Phase B onward.
+# below is only consumed from Phase B onward. Parameters were tuned so
+# that a steady V_pwm at ~half scale produces enough F_clamp to lock
+# the front wheel on dry asphalt (≈ 3500 N) — see ASSUMPTIONS.md.
 V_pwm_max = 12.0       # V
-R_m = 0.8              # Ω   motor winding resistance
-L_m = 2.0e-4           # H   motor winding inductance
-K_e = 0.02             # V·s/rad  back-EMF constant
-K_t = 0.02             # N·m/A   torque constant (matches K_e in SI)
+R_m = 0.1              # Ω   motor winding resistance
+L_m = 1.0e-3           # H   motor winding inductance
+K_e = 0.05             # V·s/rad  back-EMF constant
+K_t = 0.05             # N·m/A   torque constant (= K_e in SI)
 J_m = 1.0e-4           # kg·m²  motor rotor inertia
-r_lever = 0.02         # m    motor-shaft → piston lever arm
+b_m = 1.0e-2           # N·m·s/rad  lumped viscous load on motor shaft
+r_lever = 0.001        # m    lead-screw effective lever (≈ lead / 2π)
 A_master = 1.0e-4      # m²   master-cylinder bore area
 A_caliper = 4.0e-4     # m²   caliper piston area  (4× amplification)
 tau_hyd = 0.030        # s    hydraulic first-order lag (20–50 ms range)

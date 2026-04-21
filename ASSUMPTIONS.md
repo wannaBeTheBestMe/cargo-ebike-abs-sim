@@ -72,6 +72,28 @@ commit that introduces it. Each entry: the assumption, a short rationale, and
    stands in for the full actuator chain during Phase A so that the plant can
    be exercised end-to-end before motor/hydraulic dynamics land.
 
+## MotorActuator
+
+1. **Lumped viscous load.** The mechanical equation is
+   $J_m \dot\omega_m = K_t i - b_m \omega_m$, not
+   $K_t i - T_{\text{load}}(F_{\text{clamp}})$. Replacing the hydraulic
+   back-pressure reaction with a viscous term keeps the motor a clean
+   lumped first-order system and avoids a second algebraic loop; the
+   hydraulic $\tau_{\text{hyd}} = 30$ ms is designed to absorb any
+   dynamics this approximation loses.
+2. **Parameter tuning.** $R_m = 0.1\,\Omega$, $K_e = K_t = 0.05$,
+   $J_m = 10^{-4}\,\text{kg·m}^2$, $b_m = 10^{-2}\,\text{N·m·s/rad}$,
+   $r_{\text{lever}} = 0.001\,\text{m}$,
+   $A_{\text{caliper}}/A_{\text{master}} = 4$. Chosen so that a half-scale
+   $V_{\text{pwm}} = 6\,\text{V}$ step yields $F_{\text{clamp}}^{\text{ss}}
+   \approx 6860\,\text{N}$ — comfortably above the $\sim 3100\,\text{N}$
+   wheel-lock threshold on dry asphalt, matching a "panic stop" actuator
+   that is always deeply in saturation on hard pulls.
+3. **F_clamp output clipped at zero.** A disc brake cannot *pull* the pads
+   off the rotor; the continuous state is left unclamped but its exposed
+   signal is clipped ≥ 0. Reverse-voltage excursions therefore appear in
+   the state trajectory but not in the brake torque.
+
 ## Scenario defaults
 
 1. $v_0 = 8.33$ m/s (30 km/h) panic stop on dry asphalt.
