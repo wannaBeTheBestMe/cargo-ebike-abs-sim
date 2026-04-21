@@ -264,3 +264,51 @@ commit that introduces it. Each entry: the assumption, a short rationale, and
    internally, so $F_f$ stays bounded at $\mu_{\text{peak}} N_f$. A
    post-RK4 state clip will be added in Phase B if the noise interferes
    with the ABS estimator.
+
+## Phase B end-of-phase checkpoint
+
+1. **Actuator chain closes the loop.** Replacing the prescribed clamp
+   with the motor + hydraulic chain driven by a 6 V human ramp
+   reproduces Phase A's stopping distance to within ≈ 1 % (≈ 3.96 m vs
+   ≈ 3.95 m). The ≈ 30 ms hydraulic lag is visible in the
+   $F_{\text{clamp}}(t)$ trace but the tire saturates well before it
+   matters for distance.
+2. **Estimator lag is bounded.** With noise off, the MA-filtered
+   $\hat\omega_f$ settles to within 0.5 % of truth within ≈ 15 Hall
+   edges (~200 ms at $v_0 = 30$ km/h) and the estimated slip
+   $\hat\lambda_f$ tracks $\lambda_f^{\text{true}}$ to within
+   $5\times10^{-3}$ at steady coast-down. This is the tightest the
+   MVP's 20-magnet + MA-4 chain can run.
+3. **Edge-timeout bound for locked-wheel detection.** Without the
+   bound, a locked wheel stops emitting edges and the estimator gets
+   stuck at its last fresh reading — the ABS FSM would never fire.
+   With the bound (1.5× last-known edge interval slack), the
+   estimator tracks $\omega_f \to 0$ without spurious firings at
+   constant $\omega_f$.
+
+## Phase C end-of-phase checkpoint
+
+1. **Primary oracle met.** The locked-time fraction above ``v_cutoff``
+   drops from ≈ 72 % in the Phase B human-only run to ≈ 12 % in the
+   Phase C ABS run, verified in
+   ``tests/test_abs.py::test_abs_spends_less_time_locked_than_phase_b``.
+   The FSM visits ``DUMP`` and ``APPLY``/``REAPPLY`` states on every
+   hard stop and no ``ω_f ≈ 0`` interval lasts longer than
+   $2\cdot\text{dump\_dwell} + 5\,\text{ms}$.
+2. **PLAN's peak-|λ| < 0.30 oracle not met.** The MVP sensor chain has
+   ≈ 20 ms of lag between the true lockup event and the FSM's first
+   DUMP, so the first lockup cycle spikes to $|\lambda| \approx 1$
+   before recovery. A higher-resolution encoder or a sliding-mode
+   estimator would be needed to close the gap. This is a *property of
+   the MVP sensor chain*, not the FSM, and is surfaced as the single
+   clearest Phase D lever.
+3. **Dry-asphalt headline.** On default dry-asphalt
+   ($\mu_{\text{peak}} = 0.9$) the stopping-distance ranking is
+   human-only (4.71 m) < ABS (7.22 m) < cadence (7.81 m). All three
+   controllers stop in the same order of magnitude; the real
+   separation is in wheel control (lock fraction 72 % / 12 % / 18 %)
+   and time spent at dangerous slip (76 % / 22 % / 25 %). This is
+   the expected null result that the motivating study calls out:
+   ABS is a *low-μ* win, so the Phase C numbers here set up the
+   hypothesis to be tested against a wet/ice scenario by sweeping
+   ``tire.mu_peak`` on the same machinery.

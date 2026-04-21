@@ -18,15 +18,42 @@ pip install -e ".[dev]"
 # Run tests
 pytest
 
-# Phase A end-to-end panic-stop (once commit 6 lands)
-python scripts/run_panic_stop.py
+# Phase A/B single-scenario runners (saves a multi-panel plot to out/runs/)
+python scripts/run_panic_stop.py --phase a
+python scripts/run_panic_stop.py --phase b
+
+# Phase C comparison: human vs cadence vs ABS (plot + metrics table)
+python scripts/run_comparison.py
 ```
 
 ## Status
 
 - [x] Phase A — MVP plant, Dugoff tire, prescribed clamp, forced-lock oracle
-- [ ] Phase B — motor + hydraulic actuator chain, Hall + wheel-speed estimator
-- [ ] Phase C — ABS FSM, cadence baseline, comparison script
+- [x] Phase B — motor + hydraulic actuator chain, Hall + wheel-speed estimator,
+  human V_pwm baseline
+- [x] Phase C — ABS FSM, cadence baseline, `scripts/run_comparison.py`
+
+## Headline finding (dry asphalt, default scenario)
+
+`python scripts/run_comparison.py` on `configs/default.toml`:
+
+| controller | distance [m] | t_stop [s] | peak \|λ\| | lock-fraction | time with \|λ\|>0.5 |
+|---|---:|---:|---:|---:|---:|
+| human (Phase B) | 4.71 | 1.02 | 1.02 | 72 % | 76 % |
+| cadence (2 Hz) | 7.81 | 1.73 | 1.02 | 18 % | 25 % |
+| ABS FSM        | 7.22 | 1.52 | 1.02 | 12 % | 22 % |
+
+On dry pavement the sliding-μ is close to the peak-μ, so the locked-wheel
+slide gives the shortest stop *and* the most time at dangerous slip;
+ABS and cadence both trade distance for wheel control. ABS is primarily
+a low-μ story — the high-μ numbers above are the expected null result
+for this vehicle class and the motivating frame for the study.
+
+Note that the MVP ABS does **not** meet PLAN's peak-|λ| < 0.30 oracle:
+the 20-magnet Hall + 4-sample MA chain has enough lag that the first
+lockup cycle still spikes to λ ≈ 1 before DUMP fires. See
+`ASSUMPTIONS.md` → `ABSController` §5 for the detailed breakdown and
+what a Phase D sensor upgrade would need to change.
 
 ## Data flow
 

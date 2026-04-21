@@ -10,9 +10,19 @@ The user has a planned block diagram and a partial set of governing equations; C
 
 ## Status
 
-Phase A of `PLAN.md` in progress — MVP plant + Dugoff tire + prescribed-clamp
-brake. Phase B (actuator chain, Hall + estimator) and Phase C (ABS FSM,
-cadence baseline, comparison) have not started.
+All three phases of `PLAN.md` are implemented. Phase A (MVP plant + Dugoff
+tire + prescribed clamp), Phase B (motor/hydraulic actuator, Hall +
+wheel-speed estimator, human V_pwm baseline), and Phase C (ABS FSM,
+cadence baseline, `scripts/run_comparison.py`) all land with tests. 55
+pytest tests pass end-to-end.
+
+Note that the MVP ABS deliberately *does not* meet PLAN's peak-|λ| < 0.30
+oracle — the 20-magnet Hall + 4-sample MA estimator chain has ~20 ms of
+detection lag, so the first lockup cycle still spikes to λ ≈ 1 before
+DUMP fires. This is the *MVP* end of the study; see `ASSUMPTIONS.md` →
+`ABSController` §5 for what a Phase D sensor upgrade would need to
+change. The primary comparison oracle (locked-time fraction: 72 % Phase
+B → 12 % Phase C) is met.
 
 ## Layout
 
@@ -30,8 +40,9 @@ cadence baseline, comparison) have not started.
 
 ```bash
 pytest                                          # all unit + integration tests
-python scripts/run_panic_stop.py                # Phase A end-to-end run
-python scripts/run_comparison.py                # Phase C: human/cadence/ABS (later)
+python scripts/run_panic_stop.py --phase a      # Phase A prescribed-clamp run
+python scripts/run_panic_stop.py --phase b      # Phase B human V_pwm run
+python scripts/run_comparison.py                # Phase C: human/cadence/ABS
 ruff check . && ruff format --check .           # lint + format
 ```
 
