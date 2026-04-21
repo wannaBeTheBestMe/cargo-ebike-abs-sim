@@ -1,0 +1,73 @@
+# Cargo e-bike ABS study — default scenario + vehicle parameters.
+# Any change here must move with an ASSUMPTIONS.md update in the same commit.
+
+[vehicle]
+m = 120.0              # kg   bike + rider + cargo
+L = 1.2                # m    wheelbase
+a = 0.7                # m    rear-contact → CG (rider-forward bias)
+h = 1.0                # m    CG height (loaded cargo bike)
+R_f = 0.33             # m    front wheel radius (26")
+R_r = 0.33             # m    rear wheel radius (26")
+I_f = 0.12             # kg·m²  front-wheel inertia (thin-ring ~2 kg at R)
+g = 9.81               # m/s²
+drag_enabled = false   # coast-down off by default
+rr_enabled = false     # rolling-resistance off by default
+
+[tire]
+mu_peak = 0.9          # -    dry asphalt
+C_x = 30000.0          # N/rad  longitudinal stiffness (bicycle-tire lit.)
+
+[brake]
+mu_pad = 0.4           # -    pad–rotor friction (sintered, typical)
+r_eff = 0.14           # m    effective radius of caliper on 160 mm rotor
+n_pads = 2             # -    pads per caliper
+
+[actuator]
+# Phase A uses a prescribed F_clamp(t) ramp; the motor/hydraulic chain
+# below is only consumed from Phase B onward.
+V_pwm_max = 12.0       # V
+R_m = 0.8              # Ω   motor winding resistance
+L_m = 2.0e-4           # H   motor winding inductance
+K_e = 0.02             # V·s/rad  back-EMF constant
+K_t = 0.02             # N·m/A   torque constant (matches K_e in SI)
+J_m = 1.0e-4           # kg·m²  motor rotor inertia
+r_lever = 0.02         # m    motor-shaft → piston lever arm
+A_master = 1.0e-4      # m²   master-cylinder bore area
+A_caliper = 4.0e-4     # m²   caliper piston area  (4× amplification)
+tau_hyd = 0.030        # s    hydraulic first-order lag (20–50 ms range)
+
+[sensor]
+N_hall = 20            # magnets/rev  → 18° resolution
+jitter_frac = 0.0      # Phase A: noise off; enable in Phase B
+missed_prob = 0.0
+
+[estimator]
+lpf_fc = 50.0          # Hz   first-order low-pass cutoff
+ma_window = 4          # samples  moving-average window
+
+[scenario]
+v0 = 8.333             # m/s  (30 km/h)
+dt = 1.0e-4            # s    fixed-step RK4
+t_end = 3.0            # s    panic-stop run length
+v_epsilon = 0.1        # m/s  denominator clamp in slip-ratio calc
+
+[scenario.prescribed_clamp]
+# Phase A commit 5 uses this ramp instead of the actuator chain.
+# Linear rise 0 → F_peak over t_rise, then hold.
+t_rise = 0.15          # s
+F_peak = 2000.0        # N    clamping force at hold
+
+[controller.human]
+# Phase B human-baseline controller shape (placeholder defaults).
+F_hand_rate = 1000.0   # N/s   hand-force ramp rate
+F_hand_hold = 200.0    # N     hold value after ramp
+
+[controller.abs]
+lambda_on = 0.20
+lambda_off = 0.05
+omega_dot_trig = -100.0   # rad/s²
+v_cutoff = 1.4            # m/s (~5 km/h)
+
+[controller.cadence]
+freq = 2.0             # Hz
+duty = 0.5             # 50%
