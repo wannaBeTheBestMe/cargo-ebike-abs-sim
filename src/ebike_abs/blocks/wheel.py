@@ -31,9 +31,16 @@ class FrontWheelRotation(Block):
         return {"omega_f": float(x[0])}
 
     def derivatives(self, t, x, u):
+        omega_f = float(x[0])
         F_f = u.get("F_f", 0.0)
         T_b = u.get("T_b", 0.0)
-        return np.array([(-F_f * self.R_f - T_b) / self.I_f])
+        net_torque = -F_f * self.R_f - T_b
+        # One-sided wheel lock: if already at/below zero and net torque would
+        # drive ω_f further negative, hold it at zero. A real disc brake
+        # cannot reverse wheel rotation; the tire friction becomes static.
+        if omega_f <= 0.0 and net_torque < 0.0:
+            return np.array([0.0])
+        return np.array([net_torque / self.I_f])
 
 
 class RearWheelKinematics(Block):
