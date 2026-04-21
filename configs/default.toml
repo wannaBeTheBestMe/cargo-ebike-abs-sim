@@ -61,9 +61,13 @@ t_rise = 0.15          # s
 F_peak = 2000.0        # N    clamping force at hold
 
 [controller.human]
-# Phase B human-baseline controller shape (placeholder defaults).
-F_hand_rate = 1000.0   # N/s   hand-force ramp rate
-F_hand_hold = 200.0    # N     hold value after ramp
+# Phase B human-baseline controller drives V_pwm directly (motor-actuated
+# brake lever). Linear ramp 0 → V_hold over t_rise, then hold. V_hold=6V
+# is half scale; per the actuator tuning this saturates F_clamp above
+# the 3.1 kN wheel-lock threshold and provokes a panic-stop lockup,
+# matching the Phase A prescribed-ramp behaviour.
+V_hold = 6.0           # V
+t_rise = 0.15          # s     same shape as Phase A prescribed clamp
 
 [controller.abs]
 lambda_on = 0.20

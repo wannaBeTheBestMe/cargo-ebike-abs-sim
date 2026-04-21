@@ -148,6 +148,23 @@ commit that introduces it. Each entry: the assumption, a short rationale, and
    5\times10^{-3}$ within ~15 Hall edges (≈ 200 ms at the 30 km/h
    scenario).
 
+## HumanBrakeController (Phase B baseline)
+
+1. **Linear $V_{\text{pwm}}$ ramp.** The rider is modelled as a linear
+   ramp from $0$ to ``V_hold`` over ``t_rise``, then hold. No feedback
+   from $\lambda$, $\omega_f$, or $v$ — a baseline-shaped input exists
+   precisely so that Phase C can compare ABS and cadence against a
+   fixed, open-loop rider profile.
+2. **Defaults ``V_hold = 6 V``, ``t_rise = 0.15 s``.** Half of
+   ``V_pwm_max`` — by the actuator tuning this saturates
+   $F_{\text{clamp}}$ to ≈ 6860 N, well above the 3100 N wheel-lock
+   threshold. The ramp shape matches the Phase A prescribed-clamp
+   source so the two runs can be compared apples-to-apples.
+3. **Panic-stop distance within ≈ 1 % of Phase A.** With the ramp
+   saturated the hydraulic lag dominates and the wheel still locks
+   quickly; measured Phase B stopping distance ≈ 3.96 m vs Phase A
+   ≈ 3.95 m and oracle ≈ 3.93 m.
+
 ## Scenario defaults
 
 1. $v_0 = 8.33$ m/s (30 km/h) panic stop on dry asphalt.

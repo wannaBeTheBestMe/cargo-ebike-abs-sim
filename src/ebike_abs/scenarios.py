@@ -8,12 +8,15 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
+from .blocks.actuator import MotorActuator
 from .blocks.brake import BrakeTorqueComputation, PrescribedClamp
 from .blocks.normal_load import NormalLoad
-from .blocks.slip import SlipRatioTrue
+from .blocks.sensor import HallSensor, WheelSpeedEstimator
+from .blocks.slip import SlipRatioEstimated, SlipRatioTrue
 from .blocks.tire import BrushTireModel
 from .blocks.vehicle import VehicleTranslation
 from .blocks.wheel import FrontWheelRotation, RearWheelKinematics
+from .control.human import HumanBrakeController
 from .simulator import Simulator
 
 
@@ -50,3 +53,61 @@ def build_phase_a_panic_stop(cfg: dict) -> Simulator:
         ),
     ]
     return Simulator(blocks, dt=cfg["scenario"]["dt"])
+
+
+def build_phase_b_panic_stop(cfg: dict) -> Simulator:
+    """Phase B plant: human V_pwm ramp → motor actuator → brake → plant,
+    with the Hall + estimator + estimated-slip chain running in parallel.
+    Drops the prescribed-clamp stand-in from Phase A.
+    """
+    v0 = cfg["scenario"]["v0"]
+    R_f = cfg["vehicle"]["R_f"]
+    R_r = cfg["vehicle"]["R_r"]
+    dt = cfg["scenario"]["dt"]
+    v_eps = cfg["scenario"]["v_epsilon"]
+    act_cfg = cfg["actuator"]
+    blocks = [
+        VehicleTranslation(m=cfg["vehicle"]["m"], v0=v0),
+        FrontWheelRotation(I_f=cfg["vehicle"]["I_f"], R_f=R_f, omega0=v0 / R_f),
+        RearWheelKinematics(R_r=R_r),
+        HumanBrakeController(
+            V_hold=cfg["controller"]["human"]["V_hold"],
+            t_rise=cfg["controller"]["human"]["t_rise"],
+        ),
+        MotorActuator(
+            L_m=act_cfg["L_m"],
+            R_m=act_cfg["R_m"],
+            K_e=act_cfg["K_e"],
+            K_t=act_cfg["K_t"],
+            J_m=act_cfg["J_m"],
+            b_m=act_cfg["b_m"],
+            r_lever=act_cfg["r_lever"],
+            A_master=act_cfg["A_master"],
+            A_caliper=act_cfg["A_caliper"],
+            tau_hyd=act_cfg["tau_hyd"],
+            V_pwm_max=act_cfg["V_pwm_max"],
+        ),
+        NormalLoad(
+            m=cfg["vehicle"]["m"],
+            g=cfg["vehicle"]["g"],
+            a=cfg["vehicle"]["a"],
+            h=cfg["vehicle"]["h"],
+            L=cfg["vehicle"]["L"],
+        ),
+        SlipRatioTrue(R_f=R_f, v_epsilon=v_eps),
+        BrushTireModel(mu_peak=cfg["tire"]["mu_peak"], C_x=cfg["tire"]["C_x"]),
+        BrakeTorqueComputation(
+            mu_pad=cfg["brake"]["mu_pad"],
+            r_eff=cfg["brake"]["r_eff"],
+            n_pads=cfg["brake"]["n_pads"],
+        ),
+        HallSensor(N_hall=cfg["sensor"]["N_hall"]),
+        WheelSpeedEstimator(
+            N_hall=cfg["sensor"]["N_hall"],
+            lpf_fc=cfg["estimator"]["lpf_fc"],
+            ma_window=cfg["estimator"]["ma_window"],
+            dt=dt,
+        ),
+        SlipRatioEstimated(R_f=R_f, R_r=R_r, v_epsilon=v_eps),
+    ]
+    return Simulator(blocks, dt=dt)
