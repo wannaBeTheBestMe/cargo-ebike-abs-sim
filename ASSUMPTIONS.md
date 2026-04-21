@@ -94,6 +94,60 @@ commit that introduces it. Each entry: the assumption, a short rationale, and
    signal is clipped ≥ 0. Reverse-voltage excursions therefore appear in
    the state trajectory but not in the brake torque.
 
+## HallSensor
+
+1. **Continuous wheel angle.** Edges are detected by integrating $\omega_f$
+   into a continuous state $\theta_f$ and watching for crossings of
+   $2\pi/N$. The integrator mirrors the one-sided lock clamp
+   (`derivatives` clips to $\max(0, \omega_f)$) so that the small
+   sub-zero $\omega_f$ excursions between RK4 substeps (Phase A known
+   limitation) do not retrace $\theta$ back across a boundary and emit
+   phantom edges.
+2. **Edge timestamp by back-interpolation.** When $\theta$ crosses a
+   boundary mid-step, the edge time is estimated as
+   $t_{\text{edge}} = t - (\theta - \theta_{\text{boundary}})/\omega_f$.
+   This is $O(dt^2)$ for smooth $\omega_f$ and well inside the Hall
+   resolution at the step sizes we run.
+3. **Jitter / missed edges off by Phase B default.** `jitter_frac = 0`
+   and `missed_prob = 0` in `configs/default.toml`; both hooks exist for
+   Phase B noise sweeps.
+4. **Discrete state lives outside the RK4 substeps.** Edge count,
+   `last_edge_t`, and `next_edge_angle` update only inside
+   `Block.commit`, which the simulator invokes once per step with the
+   final signal snapshot. Updating them inside `output` would cause RK4
+   to triple-count edges.
+
+## WheelSpeedEstimator
+
+1. **Edge-interval LPF.** First-order low-pass run on the edge-rate
+   samples with $\tau = 1/(2\pi f_c)$ and $\alpha = dt_{\text{edge}} /
+   (\tau + dt_{\text{edge}})$ — so the effective cutoff stays at
+   `lpf_fc` regardless of wheel speed. $f_c = 50$ Hz by default.
+2. **Moving-average window 4.** Matches `configs/default.toml`; the
+   window absorbs the discrete-rate quantisation noise from the 18°
+   Hall resolution.
+3. **Central-difference derivative.** $\dot{\hat\omega}_f$ is computed
+   from a rolling 3-sample history of MA outputs, resolving review
+   point 5 (no forward-Euler derivative). Before the history fills, the
+   derivative is held at zero.
+4. **ZOH between edges.** `step()` returns the cached MA / derivative
+   outputs from the last edge; the estimator only advances inside
+   `commit`.
+
+## SlipRatioEstimated
+
+1. $\hat v = \omega_r R_r$ is exact on this bike — rear has $\lambda_r =
+   0$ by the front-only-braking assumption, so the rear kinematic
+   reference is the cleanest available speed surrogate.
+2. Same $v_\epsilon$ denominator clamp as `SlipRatioTrue`, so the
+   estimator and the ground truth share the singularity treatment near
+   $v \to 0$.
+3. **Expected residual at zero physical slip.** With noise off,
+   $|\hat\lambda_f - \lambda_f^{\text{true}}|$ is bounded by the
+   estimator's LPF/MA lag. On a flat coast-down it settles to $<
+   5\times10^{-3}$ within ~15 Hall edges (≈ 200 ms at the 30 km/h
+   scenario).
+
 ## Scenario defaults
 
 1. $v_0 = 8.33$ m/s (30 km/h) panic stop on dry asphalt.

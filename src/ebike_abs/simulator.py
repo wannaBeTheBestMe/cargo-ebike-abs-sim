@@ -72,6 +72,14 @@ class Simulator:
         # Final evaluation at the new state — locks in signals for the next
         # step's lagged reads (a_x, F_f, etc.) and for logging.
         _, self._persistent_signals = self._evaluate(self.t, self.x)
+        # Discrete-state blocks advance exactly once per simulator step,
+        # with the fully-populated signals dict from the final evaluation.
+        for b in self.blocks:
+            b.commit(self.t, self._persistent_signals)
+        # Re-evaluate so post-commit outputs (e.g. fresh edge counts, new
+        # estimator readings) show up in the logged row and in the next
+        # step's persistent signals.
+        _, self._persistent_signals = self._evaluate(self.t, self.x)
         return self._persistent_signals
 
     def run(self, t_end: float, log: bool = True) -> list[dict[str, float]]:

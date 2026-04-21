@@ -33,6 +33,15 @@ class Block:
         """Return dx/dt for a continuous-state block."""
         return np.zeros(0)
 
+    def commit(self, t: float, signals: dict[str, float]) -> None:
+        """Advance discrete state once per simulator step.
+
+        Called after RK4 has produced the new continuous state, with a
+        fully-populated ``signals`` dict from the final evaluation. Use this
+        for edge counters, FSM transitions, ring-buffer updates — anything
+        that must *not* be re-run inside the RK4 substeps.
+        """
+
     @property
     def has_state(self) -> bool:
         return hasattr(self, "state") and self.state is not None and len(self.state) > 0
