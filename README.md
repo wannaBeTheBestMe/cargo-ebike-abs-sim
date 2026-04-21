@@ -88,3 +88,7 @@ flowchart LR
     SLIPE --> CTRL
     EST -- ω̇̂_f --> CTRL
 ```
+
+For the fully-labeled Simulink-style block diagram — every signal annotated
+with symbol, units, and sampling type (continuous / algebraic / discrete /
+lag-1) — see [docs/BLOCK_DIAGRAM.md](docs/BLOCK_DIAGRAM.md).

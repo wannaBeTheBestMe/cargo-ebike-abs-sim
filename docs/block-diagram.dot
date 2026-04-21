@@ -1,0 +1,344 @@
+// Simulink-style block diagram of the Phase C ABS scenario.
+//
+// Signal flow (not simulator evaluation order) — see docs/BLOCK_DIAGRAM.md
+// for the per-step evaluation order and lag-1 discussion.
+//
+// Regenerate:
+//   scripts/regenerate_diagram.sh
+// or:
+//   dot -Tsvg docs/block-diagram.dot -o docs/block-diagram.svg
+//   dot -Tpng -Gdpi=200 docs/block-diagram.dot -o docs/block-diagram.png
+
+digraph ebike_abs {
+    rankdir=LR;
+    bgcolor="white";
+    compound=true;
+    splines=spline;
+    nodesep=0.45;
+    ranksep=1.1;
+    concentrate=false;
+    fontname="Helvetica";
+    fontsize=11;
+    labelloc="t";
+    label=<<b>Cargo e-bike ABS — Simulink-style signal map (Phase C scenario)</b><br/><font point-size="10">every arrow labelled: symbol  python_name  [units]  (sampling)</font>>;
+
+    node [fontname="Helvetica", fontsize=10, shape=plaintext];
+    edge [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+    // ============================================================
+    // CONTROL cluster (purple)
+    // ============================================================
+    subgraph cluster_control {
+        label=<<b>Control</b><br/><font point-size="9">src/ebike_abs/control/</font>>;
+        style="rounded,filled";
+        fillcolor="#f3e8ff";
+        color="#7c3aed";
+        fontcolor="#5b21b6";
+
+        human [label=<
+<table border="1" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#ede9fe" color="#6d28d9" style="rounded">
+  <tr><td colspan="2" bgcolor="#6d28d9"><font color="white"><b>HumanBrakeController</b></font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#4c1d95">human.py</font></td></tr>
+  <tr><td colspan="2" align="left">V_cmd = V_hold · min(1, t/t_rise)</td></tr>
+  <tr><td align="left"><i>inputs:</i> —</td>
+      <td align="right" port="out"><b>V_pwm_cmd</b></td></tr>
+</table>>];
+
+        abs [label=<
+<table border="2" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#ddd6fe" color="#6d28d9" style="rounded">
+  <tr><td colspan="2" bgcolor="#6d28d9"><font color="white"><b>ABSController</b> (FSM)</font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#4c1d95">abs_fsm.py</font></td></tr>
+  <tr><td colspan="2" align="left">
+    APPLY → DUMP → HOLD → REAPPLY<br/>
+    BYPASS if v̂ &lt; v_cutoff<br/>
+    trigger: λ̂_f &gt; λ_on  ∧  ω̇̂_f &lt; ω̇_trig<br/>
+    exit DUMP: λ̂_f &lt; λ_off  ∧  ω̇̂_f &gt; 0
+  </td></tr>
+  <tr><td align="left" port="in_cmd">V_pwm_cmd</td>
+      <td align="right" port="out_v"><b>V_pwm</b></td></tr>
+  <tr><td align="left" port="in_lh">λ̂_f</td>
+      <td align="right" port="out_m">abs_mode</td></tr>
+  <tr><td align="left" port="in_wh">ω̇̂_f</td><td></td></tr>
+  <tr><td align="left" port="in_vh">v̂</td><td></td></tr>
+</table>>];
+    }
+
+    // ============================================================
+    // ACTUATOR + BRAKE cluster (orange, continuous)
+    // ============================================================
+    subgraph cluster_actuator {
+        label=<<b>Actuation &amp; Brake</b><br/><font point-size="9">continuous, RK4 dt=1e-4 s</font>>;
+        style="rounded,filled";
+        fillcolor="#fff7ed";
+        color="#ea580c";
+        fontcolor="#9a3412";
+
+        actuator [label=<
+<table border="2" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#ffedd5" color="#c2410c" style="rounded">
+  <tr><td colspan="2" bgcolor="#c2410c"><font color="white"><b>MotorActuator</b>  ∫∫∫</font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#7c2d12">actuator.py  ·  states: i, ω_m, F_clamp</font></td></tr>
+  <tr><td colspan="2" align="left">
+    L di/dt = V_pwm − R i − K_e ω_m<br/>
+    J dω_m/dt = K_t i − b_m ω_m<br/>
+    F_piston = K_t i / r_lever<br/>
+    τ_hyd dF_clamp/dt = (A_c/A_m) F_piston − F_clamp
+  </td></tr>
+  <tr><td align="left" port="in">V_pwm</td>
+      <td align="right" port="out_f"><b>F_clamp</b></td></tr>
+  <tr><td></td><td align="right" port="out_i">i_motor</td></tr>
+  <tr><td></td><td align="right" port="out_w">ω_motor</td></tr>
+</table>>];
+
+        brake [label=<
+<table border="1" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#ffedd5" color="#c2410c" style="rounded">
+  <tr><td colspan="2" bgcolor="#c2410c"><font color="white"><b>BrakeTorqueComputation</b></font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#7c2d12">brake.py</font></td></tr>
+  <tr><td colspan="2" align="left">T_b = μ_pad · F_clamp · r_eff · n_pads</td></tr>
+  <tr><td align="left" port="in">F_clamp</td>
+      <td align="right" port="out"><b>T_b</b></td></tr>
+</table>>];
+    }
+
+    // ============================================================
+    // PLANT cluster (blue, continuous)
+    // ============================================================
+    subgraph cluster_plant {
+        label=<<b>Plant</b><br/><font point-size="9">continuous, ground truth</font>>;
+        style="rounded,filled";
+        fillcolor="#eff6ff";
+        color="#1d4ed8";
+        fontcolor="#1e3a8a";
+
+        // Summing junction for I_f · dω_f/dt = F_f·R_f − T_b
+        sum_wheel [label=<
+<table border="0" cellborder="0" cellspacing="0" cellpadding="0">
+  <tr><td>
+    <table border="2" cellborder="0" cellspacing="0" cellpadding="6" bgcolor="#fef9c3" color="#854d0e" style="rounded">
+      <tr><td port="p"><font point-size="14"><b>Σ</b></font></td></tr>
+    </table>
+  </td></tr>
+  <tr><td><font point-size="8" color="#713f12">+F_f·R_f  −T_b</font></td></tr>
+</table>>];
+
+        wheel [label=<
+<table border="2" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#dbeafe" color="#1d4ed8" style="rounded">
+  <tr><td colspan="2" bgcolor="#1d4ed8"><font color="white"><b>FrontWheelRotation</b>  ∫</font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#1e3a8a">wheel.py  ·  state: ω_f</font></td></tr>
+  <tr><td colspan="2" align="left">I_f · dω_f/dt = F_f·R_f − T_b</td></tr>
+  <tr><td align="left" port="in">net τ</td>
+      <td align="right" port="out"><b>ω_f</b></td></tr>
+</table>>];
+
+        vehicle [label=<
+<table border="2" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#dbeafe" color="#1d4ed8" style="rounded">
+  <tr><td colspan="2" bgcolor="#1d4ed8"><font color="white"><b>VehicleTranslation</b>  ∫</font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#1e3a8a">vehicle.py  ·  state: v</font></td></tr>
+  <tr><td colspan="2" align="left">m · dv/dt = −F_f</td></tr>
+  <tr><td align="left" port="in">F_f</td>
+      <td align="right" port="out_v"><b>v</b></td></tr>
+  <tr><td></td>
+      <td align="right" port="out_a">a_x</td></tr>
+</table>>];
+
+        wheel_r [label=<
+<table border="1" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#dbeafe" color="#1d4ed8" style="rounded">
+  <tr><td colspan="2" bgcolor="#1d4ed8"><font color="white"><b>RearWheelKinematics</b></font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#1e3a8a">wheel.py</font></td></tr>
+  <tr><td colspan="2" align="left">ω_r = v / R_r</td></tr>
+  <tr><td align="left" port="in">v</td>
+      <td align="right" port="out"><b>ω_r</b></td></tr>
+</table>>];
+
+        normal_load [label=<
+<table border="1" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#dbeafe" color="#1d4ed8" style="rounded">
+  <tr><td colspan="2" bgcolor="#1d4ed8"><font color="white"><b>NormalLoad</b></font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#1e3a8a">normal_load.py</font></td></tr>
+  <tr><td colspan="2" align="left">
+    N_f = (m g a − m a_x h) / L<br/>
+    clamp [0, mg]
+  </td></tr>
+  <tr><td align="left" port="in">a_x</td>
+      <td align="right" port="out"><b>N_f</b></td></tr>
+</table>>];
+
+        slip_true [label=<
+<table border="1" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#dbeafe" color="#1d4ed8" style="rounded">
+  <tr><td colspan="2" bgcolor="#1d4ed8"><font color="white"><b>SlipRatioTrue</b></font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#1e3a8a">slip.py</font></td></tr>
+  <tr><td colspan="2" align="left">λ_f = (v − ω_f·R_f) / max(v, v_ε)</td></tr>
+  <tr><td align="left" port="in_v">v</td>
+      <td align="right" port="out" rowspan="2"><b>λ_f,true</b></td></tr>
+  <tr><td align="left" port="in_w">ω_f</td></tr>
+</table>>];
+
+        tire [label=<
+<table border="1" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#dbeafe" color="#1d4ed8" style="rounded">
+  <tr><td colspan="2" bgcolor="#1d4ed8"><font color="white"><b>BrushTireModel</b> (Dugoff)</font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#1e3a8a">tire.py</font></td></tr>
+  <tr><td colspan="2" align="left">
+    λ_s = λ / (1 − λ)<br/>
+    σ = μ_peak N_f (1 − λ) / (2 C_x λ)<br/>
+    f(σ) = min(1, σ(2 − σ))<br/>
+    F_f = C_x · λ_s · f(σ)
+  </td></tr>
+  <tr><td align="left" port="in_l">λ_f,true</td>
+      <td align="right" port="out_f"><b>F_f</b></td></tr>
+  <tr><td align="left" port="in_n">N_f</td>
+      <td align="right" port="out_c">λ_crit</td></tr>
+</table>>];
+    }
+
+    // ============================================================
+    // SENSING + ESTIMATION cluster (green, discrete)
+    // ============================================================
+    subgraph cluster_sense {
+        label=<<b>Sensing &amp; Estimation</b><br/><font point-size="9">discrete / event-driven, ZOH between edges</font>>;
+        style="rounded,dashed,filled";
+        fillcolor="#ecfdf5";
+        color="#059669";
+        fontcolor="#065f46";
+
+        hall [label=<
+<table border="2" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#d1fae5" color="#059669" style="rounded">
+  <tr><td colspan="2" bgcolor="#059669"><font color="white"><b>HallSensor</b>  ∫</font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#064e3b">sensor.py  ·  state: θ_f  ·  N_hall = 20</font></td></tr>
+  <tr><td colspan="2" align="left">
+    dθ_f/dt = max(0, ω_f)<br/>
+    emit edge every 2π/N_hall (18°)<br/>
+    back-interp t_edge (O(dt²))
+  </td></tr>
+  <tr><td align="left" port="in" rowspan="4">ω_f</td>
+      <td align="right" port="out_ec"><b>hall_edge_count</b></td></tr>
+  <tr><td align="right" port="out_dt">hall_last_edge_dt</td></tr>
+  <tr><td align="right" port="out_te">hall_last_edge_t</td></tr>
+  <tr><td align="right" port="out_th">θ_f</td></tr>
+</table>>];
+
+        est [label=<
+<table border="1" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#d1fae5" color="#059669" style="rounded">
+  <tr><td colspan="2" bgcolor="#059669"><font color="white"><b>WheelSpeedEstimator</b></font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#064e3b">sensor.py  ·  discrete-only</font></td></tr>
+  <tr><td colspan="2" align="left">
+    ω_raw = (2π/N) / Δt_edge<br/>
+    ω_lpf = LPF(ω_raw, f_c = 50 Hz)<br/>
+    ω̂_f = MA(ω_lpf, window = 4)<br/>
+    ω̇̂_f = central-diff(ω̂_f, 3-sample)
+  </td></tr>
+  <tr><td align="left" port="in_ec">hall_edge_count</td>
+      <td align="right" port="out_h"><b>ω̂_f</b></td></tr>
+  <tr><td align="left" port="in_dt">hall_last_edge_dt</td>
+      <td align="right" port="out_d"><b>ω̇̂_f</b></td></tr>
+  <tr><td align="left" port="in_te">hall_last_edge_t</td>
+      <td align="right" port="out_r">ω_raw</td></tr>
+</table>>];
+
+        slip_est [label=<
+<table border="1" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#d1fae5" color="#059669" style="rounded">
+  <tr><td colspan="2" bgcolor="#059669"><font color="white"><b>SlipRatioEstimated</b></font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#064e3b">slip.py</font></td></tr>
+  <tr><td colspan="2" align="left">
+    v̂ = ω_r · R_r<br/>
+    λ̂_f = (v̂ − ω̂_f·R_f) / max(v̂, v_ε)
+  </td></tr>
+  <tr><td align="left" port="in_r">ω_r</td>
+      <td align="right" port="out_l"><b>λ̂_f</b></td></tr>
+  <tr><td align="left" port="in_w">ω̂_f</td>
+      <td align="right" port="out_v"><b>v̂</b></td></tr>
+</table>>];
+    }
+
+    // ============================================================
+    // EDGES — signal flow
+    //   label format: "symbol  python_name  [units]  (sampling)"
+    //   sampling tags:
+    //     (C)   continuous — smooth RK4 output
+    //     (A)   algebraic — recomputed fresh each step
+    //     (D)   discrete  — ZOH, updated in commit()
+    //     (D-L) discrete + one-step lag — drawn dashed red
+    // ============================================================
+
+    // --- Control chain ---
+    human:out -> abs:in_cmd [label="V_cmd  V_pwm_cmd  [V]  (A)"];
+    abs:out_v -> actuator:in [label="V  V_pwm  [V]  (A)"];
+
+    // --- Actuator → Brake → summing junction → wheel ---
+    actuator:out_f -> brake:in [label="F_clamp  F_clamp  [N]  (C)"];
+    brake:out -> sum_wheel:p [label="−T_b  T_b  [N·m]  (D-L)",
+                              style=dashed, color="#dc2626", fontcolor="#991b1b"];
+
+    // --- Tire → summing junction & vehicle (both lag-1: tire runs after wheel and vehicle) ---
+    tire:out_f -> sum_wheel:p [label="+F_f·R_f  F_f  [N]  (D-L)",
+                               style=dashed, color="#dc2626", fontcolor="#991b1b"];
+    tire:out_f -> vehicle:in [label="F_f  F_f  [N]  (D-L)",
+                              style=dashed, color="#dc2626", fontcolor="#991b1b"];
+    sum_wheel:p -> wheel:in [label="I_f·ω̇_f  [N·m]  (A)"];
+
+    // --- Plant internal flows ---
+    wheel:out -> slip_true:in_w [label="ω_f  omega_f  [rad/s]  (C)"];
+    vehicle:out_v -> slip_true:in_v [label="v  v  [m/s]  (C)"];
+    vehicle:out_v -> wheel_r:in [label="v  v  [m/s]  (C)"];
+    vehicle:out_a -> normal_load:in [label="a_x  a_x  [m/s²]  (A)"];
+    slip_true:out -> tire:in_l [label="λ_f,true  lambda_f_true  [–]  (A)"];
+    normal_load:out -> tire:in_n [label="N_f  N_f  [N]  (A)"];
+
+    // --- Plant → Sensing ---
+    wheel:out -> hall:in [label="ω_f  omega_f  [rad/s]  (C)"];
+    wheel_r:out -> slip_est:in_r [label="ω_r  omega_r  [rad/s]  (A)"];
+
+    // --- Hall → Estimator ---
+    hall:out_ec -> est:in_ec [label="N_edges  hall_edge_count  [count]  (D)"];
+    hall:out_dt -> est:in_dt [label="Δt_edge  hall_last_edge_dt  [s]  (D)"];
+    hall:out_te -> est:in_te [label="t_edge  hall_last_edge_t  [s]  (D)"];
+
+    // --- Estimator → SlipRatioEstimated ---
+    est:out_h -> slip_est:in_w [label="ω̂_f  omega_f_hat  [rad/s]  (D)"];
+
+    // --- Sensing → Control (all lag-1: abs runs before estimator chain in eval order) ---
+    slip_est:out_l -> abs:in_lh [label="λ̂_f  lambda_f_hat  [–]  (D-L)",
+                                 style=dashed, color="#dc2626", fontcolor="#991b1b",
+                                 constraint=false];
+    slip_est:out_v -> abs:in_vh [label="v̂  v_hat  [m/s]  (D-L)",
+                                 style=dashed, color="#dc2626", fontcolor="#991b1b",
+                                 constraint=false];
+    est:out_d -> abs:in_wh [label="ω̇̂_f  omega_f_hat_dot  [rad/s²]  (D-L)",
+                            style=dashed, color="#dc2626", fontcolor="#991b1b",
+                            constraint=false];
+
+    // --- Diagnostic sinks (dotted gray, logged only) ---
+    diag_abs_mode [label=<<font color="#6b7280" point-size="9">abs_mode  [int]  (D)</font>>];
+    abs:out_m -> diag_abs_mode [style=dotted, color="#9ca3af", arrowhead=none];
+
+    diag_actuator [label=<<font color="#6b7280" point-size="9">i_motor  [A]  (C)<br/>ω_motor  [rad/s]  (C)</font>>];
+    actuator:out_i -> diag_actuator [style=dotted, color="#9ca3af", arrowhead=none];
+    actuator:out_w -> diag_actuator [style=dotted, color="#9ca3af", arrowhead=none];
+
+    diag_lambda_crit [label=<<font color="#6b7280" point-size="9">λ_crit  lambda_crit  [–]  (A)</font>>];
+    tire:out_c -> diag_lambda_crit [style=dotted, color="#9ca3af", arrowhead=none];
+
+    diag_omega_raw [label=<<font color="#6b7280" point-size="9">ω_raw  omega_f_raw  [rad/s]  (D)</font>>];
+    est:out_r -> diag_omega_raw [style=dotted, color="#9ca3af", arrowhead=none];
+
+    diag_theta_f [label=<<font color="#6b7280" point-size="9">θ_f  theta_f  [rad]  (C)</font>>];
+    hall:out_th -> diag_theta_f [style=dotted, color="#9ca3af", arrowhead=none];
+
+    // ============================================================
+    // LEGEND
+    // ============================================================
+    legend [label=<
+<table border="1" cellborder="0" cellspacing="2" cellpadding="3" bgcolor="#fafafa" color="#525252" style="rounded">
+  <tr><td colspan="2" bgcolor="#525252"><font color="white"><b>Legend</b></font></td></tr>
+  <tr><td align="left" colspan="2"><b>Arrow styles</b></td></tr>
+  <tr><td align="left">solid black</td><td align="left">fresh signal within step</td></tr>
+  <tr><td align="left"><font color="#dc2626">dashed red</font></td><td align="left">lag-1 (persistent dict; breaks algebraic loop)</td></tr>
+  <tr><td align="left"><font color="#9ca3af">dotted gray</font></td><td align="left">diagnostic output (logged, not consumed)</td></tr>
+  <tr><td align="left" colspan="2"><b>Sampling tags</b></td></tr>
+  <tr><td align="left">(C)</td><td align="left">continuous — RK4 integrator output</td></tr>
+  <tr><td align="left">(A)</td><td align="left">algebraic — recomputed fresh each step</td></tr>
+  <tr><td align="left">(D)</td><td align="left">discrete — ZOH from last commit()</td></tr>
+  <tr><td align="left">(D-L)</td><td align="left">discrete + one-step lag</td></tr>
+  <tr><td align="left" colspan="2"><b>Node shapes</b></td></tr>
+  <tr><td align="left">double border</td><td align="left">block owns a continuous state (∫)</td></tr>
+  <tr><td align="left">single border</td><td align="left">algebraic / discrete block</td></tr>
+  <tr><td align="left">Σ circle</td><td align="left">summing junction</td></tr>
+</table>>];
+}
