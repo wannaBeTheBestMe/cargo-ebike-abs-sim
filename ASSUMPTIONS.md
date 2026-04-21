@@ -222,6 +222,23 @@ commit that introduces it. Each entry: the assumption, a short rationale, and
    "same order of magnitude" in ``tests/test_abs.py`` rather than
    "shorter".
 
+## CadenceController (Phase C)
+
+1. **Square-wave chop on ``V_pwm_cmd``.** The baseline for a rider
+   pumping the brake lever is a 2 Hz, 50 %-duty on/off chop of the
+   human command. During the *off* half the motor sees ``V_pwm = 0``
+   and the hydraulic line bleeds down through $\tau_{\text{hyd}}$ —
+   the DUMP is therefore not instantaneous, same as in
+   ``ABSController``.
+2. **No closed-loop reaction.** The cadence controller is purely
+   time-driven; it does not read $\hat\lambda_f$ or $\hat\omega_f$.
+   Matching the human baseline's open-loop shape keeps the comparison
+   apples-to-apples (ABS is the only block reading the estimator).
+3. **Default 2 Hz, 50 % duty** per PLAN.md parameter table. The
+   half-duty means the *average* V_pwm is half the rider's command,
+   so on dry asphalt cadence stretches the stop roughly 1.5–2× vs
+   Phase B (verified in ``tests/test_cadence.py``).
+
 ## Controller chain (Phase B/C)
 
 1. **``V_pwm_cmd`` → ``V_pwm`` indirection.** The rider models
