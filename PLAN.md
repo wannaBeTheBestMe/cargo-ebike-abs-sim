@@ -294,7 +294,7 @@ flowchart LR
     WHL[(ω_f integrator)]
     VEH[(v integrator)]
     NRM[Normal Load<br/>N_f = &#40;mga + m a_x h&#41;/L]
-    TIRE[Brush Tire<br/>F_f&#40;λ, N_f&#41;]
+    TIRE[Dugoff Tire<br/>F_f&#40;λ, N_f&#41;]
     SLIPT[λ_true = &#40;v − ω_f R_f&#41;/v]
 
     HALL[Hall N=20 + jitter]

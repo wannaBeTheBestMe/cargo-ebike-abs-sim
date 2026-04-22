@@ -215,7 +215,7 @@ digraph ebike_abs {
 
         tire [label=<
 <table border="1" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#dbeafe" color="#1d4ed8" style="rounded">
-  <tr><td colspan="2" bgcolor="#1d4ed8"><font color="white"><b>BrushTireModel</b> (Dugoff)</font></td></tr>
+  <tr><td colspan="2" bgcolor="#1d4ed8"><font color="white"><b>DugoffTireModel</b></font></td></tr>
   <tr><td colspan="2"><font point-size="8" color="#1e3a8a">tire.py</font></td></tr>
   <tr><td colspan="2" align="left">
     λ_s = λ / (1 − λ)<br/>

@@ -392,8 +392,7 @@
 <title>tire</title>
 <path fill="#dbeafe" stroke="none" d="M3176,-464.81C3176,-464.81 3326,-464.81 3326,-464.81 3332,-464.81 3338,-470.81 3338,-476.81 3338,-476.81 3338,-592.56 3338,-592.56 3338,-598.56 3332,-604.56 3326,-604.56 3326,-604.56 3176,-604.56 3176,-604.56 3170,-604.56 3164,-598.56 3164,-592.56 3164,-592.56 3164,-476.81 3164,-476.81 3164,-470.81 3170,-464.81 3176,-464.81"/>
 <polygon fill="#1d4ed8" stroke="none" points="3165,-582.31 3165,-603.56 3337,-603.56 3337,-582.31 3165,-582.31"/>
-<text xml:space="preserve" text-anchor="start" x="3194.38" y="-590.06" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">BrushTireModel</text>
-<text xml:space="preserve" text-anchor="start" x="3269.38" y="-590.06" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white"> (Dugoff)</text>
+<text xml:space="preserve" text-anchor="start" x="3212" y="-590.06" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00" fill="white">DugoffTireModel</text>
 <text xml:space="preserve" text-anchor="start" x="3240.12" y="-570.56" font-family="Helvetica,sans-Serif" font-size="8.00" fill="#1e3a8a">tire.py</text>
 <text xml:space="preserve" text-anchor="start" x="3209.75" y="-550.06" font-family="Helvetica,sans-Serif" font-size="10.00"> &#160;&#160;&#160;λ_s = λ / (1 − λ)</text>
 <text xml:space="preserve" text-anchor="start" x="3170" y="-538.81" font-family="Helvetica,sans-Serif" font-size="10.00"> &#160;&#160;&#160;σ = μ_peak N_f (1 − λ) / (2 C_x λ)</text>
