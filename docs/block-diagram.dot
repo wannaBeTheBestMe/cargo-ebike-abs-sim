@@ -1,4 +1,10 @@
-// Simulink-style block diagram of the Phase C ABS scenario.
+// Simulink-style block diagram — panic-stop scenarios (human / cadence / ABS).
+//
+// The three scenarios share every plant, actuator, and sensing block; they
+// differ only in which modulator sits between HumanBrakeController and
+// MotorActuator. The fan-out from V_pwm_cmd to Passthrough / CadenceController
+// / ABSController, together with the Scenario Select diamond, makes the
+// "one path active per run" switch explicit.
 //
 // Signal flow (not simulator evaluation order) — see docs/BLOCK_DIAGRAM.md
 // for the per-step evaluation order and lag-1 discussion.
@@ -20,7 +26,7 @@ digraph ebike_abs {
     fontname="Helvetica";
     fontsize=11;
     labelloc="t";
-    label=<<b>Cargo e-bike ABS — Simulink-style signal map (Phase C scenario)</b><br/><font point-size="10">every arrow labelled: symbol  python_name  [units]  (sampling)</font>>;
+    label=<<b>Cargo e-bike panic-stop — Simulink-style signal map (human / cadence / ABS scenarios)</b><br/><font point-size="10">every arrow labelled: symbol  python_name  [units]  (sampling)  ·  scenario-select diamond: one modulator path active per run</font>>;
 
     node [fontname="Helvetica", fontsize=10, shape=plaintext];
     edge [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
@@ -60,6 +66,42 @@ digraph ebike_abs {
       <td align="right" port="out_m">abs_mode</td></tr>
   <tr><td align="left" port="in_wh">ω̇̂_f</td><td></td></tr>
   <tr><td align="left" port="in_vh">v̂</td><td></td></tr>
+</table>>];
+
+        passthrough [label=<
+<table border="1" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#ede9fe" color="#6d28d9" style="rounded">
+  <tr><td colspan="2" bgcolor="#6d28d9"><font color="white"><b>Passthrough</b></font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#4c1d95">human.py  ·  human-only scenario</font></td></tr>
+  <tr><td colspan="2" align="left">V_pwm = V_pwm_cmd  (no modulation)</td></tr>
+  <tr><td align="left" port="in">V_pwm_cmd</td>
+      <td align="right" port="out"><b>V_pwm</b></td></tr>
+</table>>];
+
+        cadence [label=<
+<table border="1" cellborder="0" cellspacing="0" cellpadding="5" bgcolor="#ede9fe" color="#6d28d9" style="rounded">
+  <tr><td colspan="2" bgcolor="#6d28d9"><font color="white"><b>CadenceController</b></font></td></tr>
+  <tr><td colspan="2"><font point-size="8" color="#4c1d95">cadence.py  ·  cadence scenario</font></td></tr>
+  <tr><td colspan="2" align="left">
+    phase = (t mod T) / T,  T = 1/freq<br/>
+    V_pwm = V_pwm_cmd · 1[phase &lt; duty]<br/>
+    freq = 2 Hz, duty = 0.5  (open-loop chop)
+  </td></tr>
+  <tr><td align="left" port="in">V_pwm_cmd</td>
+      <td align="right" port="out"><b>V_pwm</b></td></tr>
+  <tr><td></td>
+      <td align="right" port="out_on">cadence_on</td></tr>
+</table>>];
+
+        {rank=same; passthrough; cadence; abs;}
+
+        scenario_select [label=<
+<table border="0" cellborder="0" cellspacing="0" cellpadding="0">
+  <tr><td>
+    <table border="2" cellborder="0" cellspacing="0" cellpadding="6" bgcolor="#fef9c3" color="#854d0e" style="rounded">
+      <tr><td port="p"><font point-size="11"><b>Scenario&nbsp;Select</b></font></td></tr>
+    </table>
+  </td></tr>
+  <tr><td><font point-size="8" color="#713f12">{human | cadence | abs} · one path active per run</font></td></tr>
 </table>>];
     }
 
@@ -257,9 +299,18 @@ digraph ebike_abs {
     //     (D-L) discrete + one-step lag — drawn dashed red
     // ============================================================
 
-    // --- Control chain ---
-    human:out -> abs:in_cmd [label="V_cmd  V_pwm_cmd  [V]  (A)"];
-    abs:out_v -> actuator:in [label="V  V_pwm  [V]  (A)"];
+    // --- Control chain (V_pwm_cmd fan-out → scenario-select → actuator) ---
+    //   Every run receives V_pwm_cmd on all three modulator branches, but the
+    //   Scenario Select diamond passes exactly one onward as V_pwm.
+    human:out -> passthrough:in [label="V_cmd  V_pwm_cmd  [V]  (A)"];
+    human:out -> cadence:in     [label="V_cmd  V_pwm_cmd  [V]  (A)"];
+    human:out -> abs:in_cmd     [label="V_cmd  V_pwm_cmd  [V]  (A)"];
+
+    passthrough:out -> scenario_select:p [label="V  V_pwm  [V]  (A)"];
+    cadence:out     -> scenario_select:p [label="V  V_pwm  [V]  (A)"];
+    abs:out_v       -> scenario_select:p [label="V  V_pwm  [V]  (A)"];
+
+    scenario_select:p -> actuator:in [label="V  V_pwm  [V]  (A)"];
 
     // --- Actuator → Brake → summing junction → wheel ---
     actuator:out_f -> brake:in [label="F_clamp  F_clamp  [N]  (C)"];
@@ -308,6 +359,9 @@ digraph ebike_abs {
     diag_abs_mode [label=<<font color="#6b7280" point-size="9">abs_mode  [int]  (D)</font>>];
     abs:out_m -> diag_abs_mode [style=dotted, color="#9ca3af", arrowhead=none];
 
+    diag_cadence_on [label=<<font color="#6b7280" point-size="9">cadence_on  [0/1]  (A)</font>>];
+    cadence:out_on -> diag_cadence_on [style=dotted, color="#9ca3af", arrowhead=none];
+
     diag_actuator [label=<<font color="#6b7280" point-size="9">i_motor  [A]  (C)<br/>ω_motor  [rad/s]  (C)</font>>];
     actuator:out_i -> diag_actuator [style=dotted, color="#9ca3af", arrowhead=none];
     actuator:out_w -> diag_actuator [style=dotted, color="#9ca3af", arrowhead=none];
@@ -339,6 +393,7 @@ digraph ebike_abs {
   <tr><td align="left" colspan="2"><b>Node shapes</b></td></tr>
   <tr><td align="left">double border</td><td align="left">block owns a continuous state (∫)</td></tr>
   <tr><td align="left">single border</td><td align="left">algebraic / discrete block</td></tr>
-  <tr><td align="left">Σ circle</td><td align="left">summing junction</td></tr>
+  <tr><td align="left">Σ cell</td><td align="left">summing junction</td></tr>
+  <tr><td align="left">yellow switch</td><td align="left">scenario select — exactly one upstream V_pwm forwarded per run<br align="left"/>(dashed-red lag-1 feedback lands only on the ABS branch,<br align="left"/>since cadence &amp; human-only are open-loop)</td></tr>
 </table>>];
 }

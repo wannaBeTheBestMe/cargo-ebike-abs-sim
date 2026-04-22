@@ -1,10 +1,18 @@
-# Detailed Block Diagram — Phase C ABS Scenario
+# Detailed Block Diagram — Panic-Stop Scenarios
 
 This is the Simulink-style companion to the at-a-glance mermaid diagram in
 [README.md → Data flow](../README.md#data-flow). Every arrow carries its math
 symbol, Python signal-bus name, units, and a sampling-type tag.
 
-![Phase C block diagram](block-diagram.svg)
+The diagram overlays all three scenarios from
+[`scripts/run_comparison.py`](../scripts/run_comparison.py) — **human-only**,
+**cadence**, and **ABS** — on a single canvas. They share the same
+HumanBrakeController command source and the same actuator / plant / sensing
+chain; they differ only in which modulator sits between `V_pwm_cmd` and
+`V_pwm`. See the *Scenario alternatives* subsection below for how that's
+drawn.
+
+![Panic-stop block diagram](block-diagram.svg)
 
 If the SVG above does not render in your viewer, see
 [block-diagram.png](block-diagram.png).
@@ -38,8 +46,33 @@ Source: [`block-diagram.dot`](block-diagram.dot). Regenerate with
 | double border | block owns continuous state (`∫`) integrated by the simulator's RK4 loop |
 | single border | algebraic or discrete-only block |
 | Σ circle | summing junction (e.g. `I_f · ω̇_f = +F_f·R_f − T_b`) |
+| yellow switch | scenario-select diamond — exactly one upstream `V_pwm` forwarded per run |
 
-## Simulator evaluation order (Phase C ABS scenario)
+## Scenario alternatives (diagram convention)
+
+`cluster_control` holds **four** nodes: one command source
+(`HumanBrakeController`) plus three mutually exclusive modulators —
+`Passthrough`, `CadenceController`, `ABSController`. `V_pwm_cmd` fans out
+from the human node to all three modulators, and their `V_pwm` outputs
+converge at the yellow **Scenario Select** diamond, which forwards exactly
+one candidate onward to `MotorActuator`.
+
+Which candidate is selected is a *build-time* choice in
+`scripts/run_comparison.py` / `scripts/run_panic_stop.py` — the simulator
+only instantiates one modulator per run. Drawing all three plus a switch
+lets the reader see at a glance that:
+
+1. The downstream actuator / plant / sensing chain is identical across
+   scenarios; the comparison is cleanly scoped to the modulator.
+2. Only the ABS branch consumes the dashed-red lag-1 estimator edges
+   (`λ̂_f`, `ω̇̂_f`, `v̂`). Cadence and Passthrough are open-loop, which is
+   the single most important structural distinction between the
+   strategies.
+
+Per-scenario details (tuning, expected behaviour, oracles) live in
+[`CONTROL_STRATEGIES.md`](CONTROL_STRATEGIES.md).
+
+## Simulator evaluation order (ABS scenario)
 
 From `scenarios.py::build_phase_c_abs_panic_stop()`. Blocks are walked in this
 order inside `Simulator._evaluate()`; a block reads inputs from the shared
@@ -195,16 +228,16 @@ keys that appear in the `signals: dict[str, float]` passed through
 
 ## Phase A / Phase B deltas
 
-The diagram shows the Phase C ABS scenario (the superset). The earlier phases
-use the same block topology with substitutions:
+The diagram shows the full Phase C topology (all three modulators + sensing).
+The earlier phases are the same topology with blocks removed:
 
-- **Phase A** — `PrescribedClamp` stands in for `MotorActuator`; the
-  sensing-and-estimation cluster and `HumanBrakeController` / `ABSController`
-  are absent.
-- **Phase B** — adds the sensor chain and `HumanBrakeController` + `Passthrough`
-  (so the estimator runs but does not gate the actuator).
-- **Phase C cadence** — replaces `ABSController` with `CadenceController`
-  (time-driven square wave; no estimator feedback).
+- **Phase A** — `PrescribedClamp` stands in for `MotorActuator`; the whole
+  `cluster_control` (human + all three modulators + scenario-select) and the
+  whole `cluster_sense` chain are absent.
+- **Phase B** — adds `cluster_sense` and the `HumanBrakeController` + `Passthrough`
+  branch of `cluster_control`. The estimator runs but does not gate the
+  actuator; the scenario-select diamond is degenerate (only the passthrough
+  branch exists).
 
-See `scripts/run_panic_stop.py --phase {a,b}` and `scripts/run_comparison.py`
-for the corresponding runs.
+See `scripts/run_panic_stop.py --phase {a,b}` for the Phase A/B runs and
+`scripts/run_comparison.py` for the three-way Phase C comparison.
