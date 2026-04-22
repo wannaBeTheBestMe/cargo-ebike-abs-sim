@@ -13,7 +13,7 @@ from .blocks.brake import BrakeTorqueComputation, PrescribedClamp
 from .blocks.normal_load import NormalLoad
 from .blocks.sensor import HallSensor, WheelSpeedEstimator
 from .blocks.slip import SlipRatioEstimated, SlipRatioTrue
-from .blocks.tire import BrushTireModel
+from .blocks.tire import DugoffTireModel
 from .blocks.vehicle import VehicleTranslation
 from .blocks.wheel import FrontWheelRotation, RearWheelKinematics
 from .control.abs_fsm import ABSController
@@ -47,7 +47,7 @@ def build_phase_a_panic_stop(cfg: dict) -> Simulator:
             L=cfg["vehicle"]["L"],
         ),
         SlipRatioTrue(R_f=R_f, v_epsilon=cfg["scenario"]["v_epsilon"]),
-        BrushTireModel(mu_peak=cfg["tire"]["mu_peak"], C_x=cfg["tire"]["C_x"]),
+        DugoffTireModel(mu_peak=cfg["tire"]["mu_peak"], C_x=cfg["tire"]["C_x"]),
         BrakeTorqueComputation(
             mu_pad=cfg["brake"]["mu_pad"],
             r_eff=cfg["brake"]["r_eff"],
@@ -98,7 +98,7 @@ def build_phase_b_panic_stop(cfg: dict) -> Simulator:
             L=cfg["vehicle"]["L"],
         ),
         SlipRatioTrue(R_f=R_f, v_epsilon=v_eps),
-        BrushTireModel(mu_peak=cfg["tire"]["mu_peak"], C_x=cfg["tire"]["C_x"]),
+        DugoffTireModel(mu_peak=cfg["tire"]["mu_peak"], C_x=cfg["tire"]["C_x"]),
         BrakeTorqueComputation(
             mu_pad=cfg["brake"]["mu_pad"],
             r_eff=cfg["brake"]["r_eff"],
@@ -160,7 +160,7 @@ def build_phase_c_cadence_panic_stop(cfg: dict) -> Simulator:
             L=cfg["vehicle"]["L"],
         ),
         SlipRatioTrue(R_f=R_f, v_epsilon=v_eps),
-        BrushTireModel(mu_peak=cfg["tire"]["mu_peak"], C_x=cfg["tire"]["C_x"]),
+        DugoffTireModel(mu_peak=cfg["tire"]["mu_peak"], C_x=cfg["tire"]["C_x"]),
         BrakeTorqueComputation(
             mu_pad=cfg["brake"]["mu_pad"],
             r_eff=cfg["brake"]["r_eff"],
@@ -229,7 +229,7 @@ def build_phase_c_abs_panic_stop(cfg: dict) -> Simulator:
             L=cfg["vehicle"]["L"],
         ),
         SlipRatioTrue(R_f=R_f, v_epsilon=v_eps),
-        BrushTireModel(mu_peak=cfg["tire"]["mu_peak"], C_x=cfg["tire"]["C_x"]),
+        DugoffTireModel(mu_peak=cfg["tire"]["mu_peak"], C_x=cfg["tire"]["C_x"]),
         BrakeTorqueComputation(
             mu_pad=cfg["brake"]["mu_pad"],
             r_eff=cfg["brake"]["r_eff"],

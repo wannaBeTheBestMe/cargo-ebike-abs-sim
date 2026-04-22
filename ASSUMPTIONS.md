@@ -57,10 +57,11 @@ commit that introduces it. Each entry: the assumption, a short rationale, and
 2. $N_f$ clamped to $[0, m g]$. A clamp at $m g$ means the bike is at the
    stoppie threshold; we flag (do not enforce) $N_r \geq 0$ in diagnostics.
 
-## BrushTireModel
+## DugoffTireModel
 
 1. **Dugoff closed-form** for $F_f(\lambda, N_f)$. Avoids iterative solves and
-   matches the piecewise linear/saturated shape to within a few percent.
+   matches the piecewise Brush-model linear/saturated shape to within a few
+   percent.
 2. Longitudinal stiffness $C_x = 30\,000$ N/rad (bicycle-tire literature, dry
    asphalt). Single value across operating range.
 3. $\mu_{\text{peak}} = 0.9$ (dry asphalt) constant — no velocity or

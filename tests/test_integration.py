@@ -13,7 +13,7 @@ import numpy as np
 from ebike_abs.block import Block
 from ebike_abs.blocks.normal_load import NormalLoad
 from ebike_abs.blocks.slip import SlipRatioTrue
-from ebike_abs.blocks.tire import BrushTireModel
+from ebike_abs.blocks.tire import DugoffTireModel
 from ebike_abs.blocks.vehicle import VehicleTranslation
 from ebike_abs.simulator import Simulator
 
@@ -39,7 +39,7 @@ def _run_forced_lock(v0: float, mu_peak: float = 0.9):
         ForcedLockedWheel(),
         NormalLoad(m=m, g=g, a=a, h=h, L=L),
         SlipRatioTrue(R_f=R, v_epsilon=0.01),
-        BrushTireModel(mu_peak=mu_peak, C_x=30_000.0),
+        DugoffTireModel(mu_peak=mu_peak, C_x=30_000.0),
     ]
     sim = Simulator(blocks, dt=dt)
 
@@ -83,7 +83,7 @@ def test_forced_lock_clamps_N_f_to_mg():
         ForcedLockedWheel(),
         NormalLoad(m=m, g=g, a=0.7, h=1.0, L=1.2),
         SlipRatioTrue(R_f=0.33, v_epsilon=0.01),
-        BrushTireModel(mu_peak=0.9, C_x=30_000.0),
+        DugoffTireModel(mu_peak=0.9, C_x=30_000.0),
     ]
     sim2 = Simulator(blocks, dt=1.0e-4)
     for _ in range(100):  # 10 ms of settling
@@ -104,7 +104,7 @@ def test_coast_down_through_full_plant_and_tire():
         FrontWheelRotation(I_f=0.12, R_f=R, omega0=v0 / R),
         NormalLoad(m=m, g=g, a=0.7, h=1.0, L=1.2),
         SlipRatioTrue(R_f=R, v_epsilon=0.01),
-        BrushTireModel(mu_peak=0.9, C_x=30_000.0),
+        DugoffTireModel(mu_peak=0.9, C_x=30_000.0),
     ]
     sim = Simulator(blocks, dt=1.0e-4)
     sim.run(2.0, log=False)

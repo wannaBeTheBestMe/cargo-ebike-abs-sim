@@ -5,12 +5,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from ebike_abs.blocks.tire import BrushTireModel
+from ebike_abs.blocks.tire import DugoffTireModel
 
 
 @pytest.fixture
-def tire() -> BrushTireModel:
-    return BrushTireModel(mu_peak=0.9, C_x=30_000.0)
+def tire() -> DugoffTireModel:
+    return DugoffTireModel(mu_peak=0.9, C_x=30_000.0)
 
 
 @pytest.fixture

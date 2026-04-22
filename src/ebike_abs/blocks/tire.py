@@ -13,7 +13,8 @@ Limits:
 * ``λ → 1⁻``:  λ_s → ∞,  σ → 0,  f(σ) → 0,  F_f → μ_peak · N_f.
 
 ``λ_crit = μ_peak N_f / C_x`` is emitted as a diagnostic only — the
-smooth ``f(σ)`` saturation replaces the brush-model piecewise switch.
+smooth ``f(σ)`` saturation replaces the piecewise Brush-model switch
+that the design review originally proposed.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from __future__ import annotations
 from ..block import Block
 
 
-class BrushTireModel(Block):
+class DugoffTireModel(Block):
     name = "tire"
     inputs = ["lambda_f_true", "N_f"]
     outputs = ["F_f", "lambda_crit"]
