@@ -83,3 +83,19 @@ sim honestly when it does. Either change would reframe the comparison from
 tyre-limited — to "preserved steering at fixed deceleration *below*
 pitchover on a low- or mixed-μ surface," which is the scenario this vehicle
 class actually buys an ABS for.
+
+## 7. Conclusion
+
+On a 30 km/h dry-asphalt panic stop the ABS FSM cuts time-locked from 72 %
+(human baseline) to 12 % and stops in 7.22 m, edging cadence's 7.81 m on
+controllability while ceding ≈ 2.5 m to the locked human slide that simply
+surrenders steering for distance. The headline finding is therefore a
+*controllability* win, not a distance win — the expected null result on a
+high-μ surface where the Dugoff tyre's sliding μ equals its peak μ. The most
+consequential limitation is that the planar plant has no pitch degree of
+freedom: every controller crosses the 4.91 m/s² pitchover limit by ≈ 1.8×,
+so on a real loaded cargo e-bike the binding constraint is the rear wheel
+lifting, not the tyre saturating. The natural next extension is a low-μ
+scenario (μ_peak ≈ 0.35, wet asphalt or paint) where sliding μ drops well
+below peak and the locked-slide baseline collapses — the operating point
+this vehicle class actually buys an ABS for.
