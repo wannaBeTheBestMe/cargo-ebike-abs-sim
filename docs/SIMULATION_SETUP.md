@@ -12,7 +12,7 @@ row moves with a matching entry in `ASSUMPTIONS.md`.
 |-----------------|---------------------------------------|----------------------------------------------------|----------------------------------------------------------------------------------|
 | Vehicle         | m, L, a (rear→CG), h                  | 120 kg, 1.2 m, 0.7 m, 1.0 m                        | **assumed** — loaded cargo e-bike (`ASSUMPTIONS.md` §Global)                     |
 | Front wheel     | R_f, I_f                              | 0.33 m, 0.12 kg·m²                                 | 26″ spec; I_f via thin-ring m_wh ≈ 2 kg, ±30 % (§FrontWheelRotation)             |
-| Dugoff tire     | μ_peak, C_x                           | 0.9, 30 000 N/rad                                  | dry-asphalt / bicycle-tire literature (§BrushTireModel)                          |
+| Dugoff tire     | μ_peak, C_x                           | 0.9, 30 000 N/rad                                  | dry-asphalt / bicycle-tire literature (§DugoffTireModel)                          |
 | Disc brake      | μ_pad, r_eff, n_pads                  | 0.4, 0.14 m, 2                                     | sintered pad on 160 mm rotor (§BrakeTorqueComputation)                           |
 | Motor           | R_m, L_m, K_e = K_t, J_m, b_m         | 0.1 Ω, 1 mH, 0.05 (SI), 10⁻⁴ kg·m², 10⁻² N·m·s/rad | **tuned** so half-scale V_pwm saturates F_clamp ≫ 3.1 kN lock (§MotorActuator 2) |
 | Hydraulic       | r_lever, A_caliper / A_master, τ_hyd  | 10⁻³ m, 4×, 30 ms                                  | 20–50 ms typical caliper line (§MotorActuator 1)                                 |

@@ -89,7 +89,7 @@ updated in place as earlier blocks emit outputs.
 | 6 | `MotorActuator` | `V_pwm` | `F_clamp`, `i_motor`, `omega_motor` |
 | 7 | `NormalLoad` | `a_x` | `N_f` |
 | 8 | `SlipRatioTrue` | `v`, `omega_f` | `lambda_f_true` |
-| 9 | `BrushTireModel` | `lambda_f_true`, `N_f` | `F_f`, `lambda_crit` |
+| 9 | `DugoffTireModel` | `lambda_f_true`, `N_f` | `F_f`, `lambda_crit` |
 | 10 | `BrakeTorqueComputation` | `F_clamp` | `T_b` |
 | 11 | `HallSensor` | `omega_f` | `theta_f`, `hall_edge_count`, `hall_last_edge_dt`, `hall_last_edge_t` |
 | 12 | `WheelSpeedEstimator` | `hall_edge_count`, `hall_last_edge_dt`, `hall_last_edge_t` | `omega_f_hat`, `omega_f_hat_dot`, `omega_f_raw` |
@@ -97,7 +97,7 @@ updated in place as earlier blocks emit outputs.
 
 **Lag-1 edges** (dashed red in the diagram, italicised above):
 
-1. `BrushTireModel.F_f → VehicleTranslation`  and  `BrushTireModel.F_f → FrontWheelRotation`  — tire runs at #9, consumers at #1 and #2.
+1. `DugoffTireModel.F_f → VehicleTranslation`  and  `DugoffTireModel.F_f → FrontWheelRotation`  — tire runs at #9, consumers at #1 and #2.
 2. `BrakeTorqueComputation.T_b → FrontWheelRotation`  — brake at #10, wheel at #2.
 3. `WheelSpeedEstimator.omega_f_hat_dot → ABSController`, `SlipRatioEstimated.lambda_f_hat → ABSController`, `SlipRatioEstimated.v_hat → ABSController` — estimator chain at #12–#13, ABS at #5.
 
@@ -117,10 +117,10 @@ keys that appear in the `signals: dict[str, float]` passed through
 | `a_x` | a_x | m/s² | `VehicleTranslation` | `NormalLoad` | A |
 | `omega_f` | ω_f | rad/s | `FrontWheelRotation` (state) | `SlipRatioTrue`, `HallSensor` | C |
 | `omega_r` | ω_r | rad/s | `RearWheelKinematics` | `SlipRatioEstimated` | A |
-| `N_f` | N_f | N | `NormalLoad` | `BrushTireModel` | A |
-| `lambda_f_true` | λ_f,true | – | `SlipRatioTrue` | `BrushTireModel` | A |
-| `F_f` | F_f | N | `BrushTireModel` | `VehicleTranslation` (D‑L), `FrontWheelRotation` (D‑L) | A at source, D‑L at consumer |
-| `lambda_crit` | λ_crit | – | `BrushTireModel` | *(diagnostic only)* | A |
+| `N_f` | N_f | N | `NormalLoad` | `DugoffTireModel` | A |
+| `lambda_f_true` | λ_f,true | – | `SlipRatioTrue` | `DugoffTireModel` | A |
+| `F_f` | F_f | N | `DugoffTireModel` | `VehicleTranslation` (D‑L), `FrontWheelRotation` (D‑L) | A at source, D‑L at consumer |
+| `lambda_crit` | λ_crit | – | `DugoffTireModel` | *(diagnostic only)* | A |
 | `T_b` | T_b | N·m | `BrakeTorqueComputation` | `FrontWheelRotation` (D‑L) | A at source, D‑L at consumer |
 | `F_clamp` | F_clamp | N | `MotorActuator` (state) | `BrakeTorqueComputation` | C |
 | `i_motor` | i | A | `MotorActuator` (state) | *(diagnostic only)* | C |
@@ -201,7 +201,7 @@ keys that appear in the `signals: dict[str, float]` passed through
 - inputs: `v` [m/s], `omega_f` [rad/s]
 - outputs: `lambda_f_true` [–] `= (v − ω_f·R_f) / max(v, v_ε)`
 
-**`BrushTireModel`** (closed-form Dugoff) — [`src/ebike_abs/blocks/tire.py`](../src/ebike_abs/blocks/tire.py)
+**`DugoffTireModel`** — [`src/ebike_abs/blocks/tire.py`](../src/ebike_abs/blocks/tire.py)
 - inputs: `lambda_f_true` [–], `N_f` [N]
 - outputs: `F_f` [N], `lambda_crit` [–] *(diagnostic)*
 - smooth-saturated tire force; no piecewise branch (the `f(σ)` in Dugoff handles it).

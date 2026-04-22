@@ -51,7 +51,7 @@ cargo-ebike-abs-sim/
 │       │   ├── sensor.py       # HallSensor, WheelSpeedEstimator
 │       │   ├── slip.py         # SlipRatioTrue, SlipRatioEstimated
 │       │   ├── normal_load.py  # moment-balance N_f
-│       │   ├── tire.py         # BrushTireModel (time-varying λ_crit)
+│       │   ├── tire.py         # DugoffTireModel (time-varying λ_crit)
 │       │   ├── actuator.py     # Motor+PWM+Hydraulic (1st-order lag)
 │       │   └── brake.py        # BrakeTorqueComputation
 │       └── control/
@@ -149,7 +149,7 @@ implement three methods is noise.
 - Moment balance about rear contact: $N_f = \big(m g a + m a_x h\big) / L$ where $a = $ rear-to-CG distance, $L = $ wheelbase, $h = $ CG height, $a_x = \dot v$.
 - Clamped to $[0, mg]$; the bike is near stoppie threshold under hard braking and we flag (not enforce) $N_r \geq 0$.
 
-### 9. `BrushTireModel` (Dugoff, closed-form)
+### 9. `DugoffTireModel` (closed-form)
 
 Closed-form Dugoff formulation — no iterative solve, no piecewise branch on
 $\lambda_{\text{crit}}$ because the smooth saturation function `f(σ)` already
@@ -233,7 +233,7 @@ Phase A. Phases B and C layer in realism and the controllers being studied.
 1. **Scaffold.** `pyproject.toml`, `.gitignore`, empty package, ruff + pytest config, `configs/default.toml` skeleton. → commit.
 2. **`Block` + `Simulator`.** Two-method `Block` interface; simulator runs a trivial 1-state sanity ODE (exponential decay) end-to-end. → test → commit.
 3. **Plant core.** `VehicleTranslation`, `FrontWheelRotation`, `RearWheelKinematics`, `NormalLoad`, `SlipRatioTrue`. → coast-down test → commit.
-4. **`BrushTireModel`.** Dugoff equations from §9 above. → unit-test saturation: $F_f$ plateaus at $\mu_{\text{peak}} N_f$ for $\lambda \gg \lambda_{\text{crit}}$. → commit.
+4. **`DugoffTireModel`.** Dugoff equations from §9 above. → unit-test saturation: $F_f$ plateaus at $\mu_{\text{peak}} N_f$ for $\lambda \gg \lambda_{\text{crit}}$. → commit.
 5. **`BrakeTorqueComputation`.** Driven directly by a **prescribed** $F_{\text{clamp}}(t)$ ramp (actuator chain skipped for now). → commit.
 6. **End-to-end panic stop.** Plot $v$, $\omega_f$, $\lambda_f$, $F_f$. **Checkpoint:** a forced-locked run ($\omega_f \equiv 0$) matches $v_0^2 / (2\mu_{\text{peak}} g)$ within integrator tolerance. → commit.
 

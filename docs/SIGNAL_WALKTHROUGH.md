@@ -168,14 +168,14 @@ negative under pure brake torque: if `ω_f ≤ 0` and net torque is still
 negative, `dω_f/dt` is clamped to zero. A real disc brake cannot reverse
 wheel direction.
 
-Both inputs are **lag-1** because their producers (`BrushTireModel` at #9,
+Both inputs are **lag-1** because their producers (`DugoffTireModel` at #9,
 `BrakeTorqueComputation` at #10 in the evaluation order) run after this
 block. At `dt = 10⁻⁴ s` the phase error is ≪ 1 % of the hydraulic time
 constant, so the lag is effectively invisible.
 
 ---
 
-## 6. Closing the tire-force loop: `SlipRatioTrue` → `BrushTireModel`
+## 6. Closing the tire-force loop: `SlipRatioTrue` → `DugoffTireModel`
 
 This is where the interesting physics happens. Take the just-integrated
 `v` and `omega_f`:
@@ -185,7 +185,7 @@ This is where the interesting physics happens. Take the just-integrated
 rolling, `ω_f·R_f = v` and `λ = 0`. As brake torque bites, `ω_f` drops below
 `v/R_f` and `λ` grows toward 1. A fully locked wheel has `λ = 1`.
 
-**`BrushTireModel`** is closed-form Dugoff:
+**`DugoffTireModel`** is the closed-form Dugoff tire:
 
 ```
 λ_s  = λ / (1 − λ)
@@ -415,8 +415,8 @@ Every dashed-red arrow on the diagram is one of these. They're safe because
 
 | From | To | Signal | Why lag-1 |
 |---|---|---|---|
-| `BrushTireModel` | `VehicleTranslation` | `F_f` | tire runs at #9, vehicle at #1 |
-| `BrushTireModel` | `FrontWheelRotation` | `F_f` | tire runs at #9, wheel at #2 |
+| `DugoffTireModel` | `VehicleTranslation` | `F_f` | tire runs at #9, vehicle at #1 |
+| `DugoffTireModel` | `FrontWheelRotation` | `F_f` | tire runs at #9, wheel at #2 |
 | `BrakeTorqueComputation` | `FrontWheelRotation` | `T_b` | brake runs at #10, wheel at #2 |
 | `WheelSpeedEstimator` | `ABSController` | `omega_f_hat_dot` | estimator at #12, ABS at #5 |
 | `SlipRatioEstimated` | `ABSController` | `lambda_f_hat` | slip_est at #13, ABS at #5 |
