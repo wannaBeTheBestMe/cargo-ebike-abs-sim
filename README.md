@@ -55,6 +55,10 @@ lockup cycle still spikes to λ ≈ 1 before DUMP fires. See
 `ASSUMPTIONS.md` → `ABSController` §5 for the detailed breakdown and
 what a Phase D sensor upgrade would need to change.
 
+For the write-up discussion — why ABS doesn't win on high-μ, modelling
+sensitivities, and the pitchover check against `g·ℓ_f/h = 4.91 m/s²` (all
+three strategies cross it by ~1.8×) — see [docs/DISCUSSION.md](docs/DISCUSSION.md).
+
 ## Data flow
 
 ```mermaid
